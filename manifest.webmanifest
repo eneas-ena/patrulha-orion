@@ -1,14 +1,14 @@
 {
- "name": "Patrulha Órion",
- "short_name": "Patrulha Órion",
- "description": "Pinball espacial da Igreja Vidas",
+ "name": "Fliperama Vidas",
+ "short_name": "Fliperama",
+ "description": "Mesas de pinball da Igreja Vidas: Patrulha Órion e Apocalipse",
  "lang": "pt-BR",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
  "orientation": "any",
- "background_color": "#05061a",
- "theme_color": "#05061a",
+ "background_color": "#0b0a1c",
+ "theme_color": "#0b0a1c",
  "icons": [
   {
    "src": "icon-192.png",
