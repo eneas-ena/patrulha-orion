@@ -170,7 +170,7 @@ button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 
 <script>
 'use strict';
-const VERSAO = '0.9.1+n1.1.0';
+const VERSAO = '0.10.0+n1.1.0';
 const VELOCIDADE = 0.9; // 1 = velocidade original; 0.9 = 10% mais lento
 const W=620,H=1040,R=11,G=1500,DT=1/480,VMAX=2600,PLY=1000,CX=286,CY=600;
 const MX=x=>572-x, $=id=>document.getElementById(id);
@@ -218,6 +218,8 @@ const dropT=[0,1,2].map(i=>{const x=[272,304,336][i],y=t=>414-(t-272)*.283;
 const bumpers=[{x:225,y:205,r:30,f:0},{x:340,y:195,r:30,f:0},{x:282,y:285,r:30,f:0},{x:125,y:305,r:21,f:0,mini:1},{x:438,y:235,r:21,f:0,mini:1},{x:412,y:135,r:19,f:0,mini:1}];
 const spinners=[{x:49,y:430,w:27,ang:0,rate:0,half:0},{x:531,y:440,w:19,ang:0,rate:0,half:0}];
 const laneLow=[{x:43,y:812,out:1,on:false,cool:0},{x:89,y:812,on:false,cool:0},{x:483,y:812,on:false,cool:0},{x:529,y:812,out:1,on:false,cool:0}];
+const CAP={x:452,y:122,r:8,v:450}; // buraco da bola presa: difícil de acertar
+const CAPNOME='Cápsula de Resgate';
 const HOLE={x:430,y:725};
 const pegs=[[370,445],[150,180],[490,180],[168,640],[405,625]].map(([x,y])=>({x,y,r:6,f:0}));
 const stars=[[170,130],[440,175],[365,360],[205,330],[330,500],[240,530],[150,760],[420,800],[286,700]].map(([x,y])=>({x,y,on:false,cool:0}));
@@ -244,7 +246,7 @@ const MISSIONS=[ // ordem da mais fácil para a mais difícil, medida nas simula
   {nome:'Patrulha de Ataque',txt:'Faça os para-choques soarem {n} vezes.',ev:'bumper',n:8,pts:150000},
   {nome:'Turbinas',txt:'Gire as turbinas das órbitas {n} vezes.',ev:'spin',n:15,pts:180000},
   {nome:'Soletrar Órion',txt:'Passe sobre {n} letras de ÓRION, abaixo da Estação.',ev:'letter',n:5,pts:220000},
-  {nome:'Frota em Perigo',txt:'Multibola! Faça os para-choques soarem {n} vezes.',ev:'bumper',n:12,pts:600000,multi:true},
+  {nome:'Escolta da Frota',txt:'Faça os para-choques soarem {n} vezes.',ev:'bumper',n:12,pts:400000},
   {nome:'Chuva de Estrelas',txt:'Passe sobre {n} estrelas da mesa.',ev:'star',n:5,pts:300000},
   {nome:'Caça à Lua',txt:'Acerte {n} vezes a lua que orbita a Estação.',ev:'moon',n:3,pts:350000},
   {nome:'Reconhecimento',txt:'Passe {n} vezes pelas raias superiores.',ev:'lane',n:2,pts:400000},
@@ -258,13 +260,14 @@ const MISSIONS=[ // ordem da mais fácil para a mais difícil, medida nas simula
   {nome:'Horizonte de Eventos',txt:'Caia {n} vez no Buraco Negro, à direita.',ev:'hole',n:1,pts:1200000},
 ];
 const CHEV={fuel:[[176,560,-2.9]],bumper:[[300,352,-1.57]],lane:[[286,146,-1.57]],ramp:[[420,520,-1.33]],drop:[[304,436,-1.57]],worm:[[125,430,-1.57],[398,342,-1.57]],orbit:[[42,650,-1.57],[531,650,-1.57]],spin:[[49,470,-1.57],[531,480,-1.57]],boost:[[445,590,-.3]],ramp2:[[215,515,-1.75]],moon:[[CX,CY-104,1.57]],hole:[[430,768,-1.57]],letter:[[228,740,-1.57]],star:[[286,760,-1.57]]};
-const g={state:'attract',t:0,score:0,ball:0,total:3,extra:0,rank:0,mult:1,base:0,balls:[],pull:0,pulling:false,mission:null,mi:0,loop:0,prog:0,
+const g={state:'attract',mbIdx:0,mbPend:[],capt:null,t:0,score:0,ball:0,total:3,extra:0,rank:0,mult:1,base:0,balls:[],pull:0,pulling:false,mission:null,mi:0,loop:0,prog:0,
   saveUntil:0,tilted:false,nudge:0,post:0,turbo:0,kick:[false,false],recStart:0,recSaid:false,noSearch:false,timers:[],idle:'Aperte Iniciar',msgUntil:0,orbit:null,auto:false,
   stats:{},record:+store.get('orion-recorde',0)||0,dirty:true};
 const count=k=>g.stats[k]=(g.stats[k]||0)+1;
 function after(sec,fn){g.timers.push({at:g.t+sec,fn})}
 function say(text,dur=2.2){$('msg').textContent=text;g.msgUntil=g.t+dur}
-function add(p){if(g.tilted||g.state==='attract'||g.state==='over')return;if(g.t<g.wizard)p*=2;g.score+=p;g.dirty=true;checkRecord()}
+const MB_MARCOS=[2e6,4e6,8e6,12e6,16e6];const mbMarco=i=>i<MB_MARCOS.length?MB_MARCOS[i]:MB_MARCOS.at(-1)+4e6*(i-MB_MARCOS.length+1); // multibola por pontuação
+function add(p){if(g.tilted||g.state==='attract'||g.state==='over')return;if(g.t<g.wizard)p*=2;g.score+=p;g.dirty=true;checkRecord();while(g.score>=mbMarco(g.mbIdx)){if(!g.mbPend.length&&g.balls.length<=1)g.mbPend.push(mbMarco(g.mbIdx));g.mbIdx++}} // marcos passados durante uma multibola não geram outra (evita multibola sem fim)
 function checkRecord(){if(!g.recSaid&&g.recStart>0&&g.score>g.recStart){g.recSaid=true;big('Novo recorde! Eu sou Patrulha Órion',3.5);speak()}}
 function event(name,c=1){count(name);if(name==='bumper'&&g.balls.length>1)g.jpBump++;const m=g.mission;if(!m||m.ev!==name||g.tilted)return;
   g.prog+=c;g.dirty=true;
@@ -281,7 +284,7 @@ function event(name,c=1){count(name);if(name==='bumper'&&g.balls.length>1)g.jpBu
 function shot(kind){if(g.tilted)return;
   if(g.t-g.comboT<4)g.combo++;else g.combo=1;g.comboT=g.t;
   if(g.combo>=2){const c=g.combo,v=25000*c*c;add(v);count('combo');after(.8,()=>{say(`Combo ×${c}! +${fmt(v)}`,1.8);sfx('prog');if(c>=3)voice('combo')})}
-  if(g.balls.length>1&&(kind==='ramp'||kind==='ramp2')){g.jp++;const sup=g.jp%3===0,v=(500000+g.jpBump*25000)*(sup?3:1);add(v);count(sup?'superjp':'jackpot');
+  if(g.balls.length>1&&(kind==='ramp'||kind==='ramp2')){g.jp++;const sup=g.jp%3===0,v=(250000+g.jpBump*15000)*(sup?3:1);add(v);count(sup?'superjp':'jackpot');
     big(sup?`SUPER JACKPOT! +${fmt(v)}`:`JACKPOT ${g.jp}! +${fmt(v)}`,2.8,sup?'super':'jackpot');sfx('rank');shake(sup?7:4,sup?500:280);const bb=g.balls.find(x=>x.rail!==null)||g.balls[0];if(bb)spark(bb.x,bb.y,sup?P.magenta:P.amber,sup?40:22,420)}}
 function startWizard(){if(g.state!=='play'&&g.state!=='plunger')return;g.wizard=g.t+45;g.saveUntil=g.t+15;big('MODO FINAL: Batalha de Órion! Tudo vale o dobro',3.6,'final');shake(6,600);sfx('rank');count('wizard');
   for(let i=0;i<2;i++)after(1+i*.8,()=>{if(g.state==='play'){g.balls.push(topBall());sfx('launch')}});
@@ -297,6 +300,7 @@ function hitDrop(v,s){if(v<60||g.tilted)return;s.active=false;add(10000);g.base+
   if(dropT.every(d=>!d.active)){add(75000);say('Sinal captado! Retornos armados',2.2);g.kick=[true,true];sfx('prog');after(1.6,()=>dropT.forEach(d=>d.active=true))}}
 function hitBoost(v,s){if(v<70||s.on||g.tilted)return;s.on=true;add(7000);g.base+=1500;sfx('target');event('boost');
   if(boostT.every(f=>f.on)){add(60000);g.turbo=g.t+20;say('Turbo: para-choques valem o dobro',2.4);sfx('prog');after(.8,()=>boostT.forEach(f=>f.on=false))}}
+const MBTXT='MULTIBOLA! A frota chegou';
 function lockHelp(){return g.lockLit?'Trava acesa: leve a bola ao Buraco Negro':`Bolas travadas: ${g.locks} de 3`}
 function hitLetter(v,s){if(v<55||s.on||g.tilted)return;s.on=true;add(12000);g.base+=1200;sfx('target');event('letter');
   if(letterT.every(l=>l.on)){add(150000);g.post=Math.max(g.post,g.t+12);say('Ó-R-I-O-N! +150.000',2.6);sfx('rank');count('orion');after(1.2,()=>letterT.forEach(l=>l.on=false))}}
@@ -306,10 +310,12 @@ function topBall(){return newBall(286+(Math.random()-.5)*60,62,{vx:(Math.random(
 function newBall(x,y,o={}){return{x,y,vx:0,vy:0,ax:x,ay:y,railId:0,cap:null,rail:null,held:false,nc:0,gateClear:false,still:0,field:false,bumpCool:0,rot:0,...o}}
 function launchHint(){return matchMedia('(hover: none)').matches?'Segure o dedo na mesa e solte para lançar':'Segure Espaço e solte para lançar'}
 function idleMsg(){if(g.state==='attract')return'Aperte Iniciar';if(g.state==='over')return'Fim da patrulha';if(g.state==='plunger'&&g.balls.some(b=>b.held))return g.skill>=0?`${launchHint()}. Precisão: força ${BANDS[g.skill].nome}, na faixa verde`:launchHint();
-  const m=g.mission;if(g.lockLit&&g.balls.length===1&&(!m||Math.floor(g.t/4)%2))return lockHelp();return m?`${m.nome}: ${g.prog} de ${m.goal}`:'A próxima missão já vai começar'}
+  const m=g.mission;if(g.capt)return `${CAPNOME}: a bola sai em ${Math.max(1,Math.ceil(g.capt.until-g.t))} s`;
+  const op=[m?`${m.nome}: ${g.prog} de ${m.goal}`:'A próxima missão já vai começar'];if(g.lockLit&&g.balls.length===1)op.push(lockHelp());if(g.balls.length===1)op.push(`Multibola em ${fmt(Math.max(0,mbMarco(g.mbIdx)-g.score))} pontos`);
+  return op[Math.floor(g.t/4)%op.length]}
 function spawn(){if(g.easy){g.kick=[true,true];g.post=g.t+1e9}g.skill=Math.floor(Math.random()*3);g.skillHit=false;g.balls=[newBall(576,PLY-R,{held:true})];g.state='plunger';g.pull=0;g.pulling=false;g.dirty=true;
   g.msgUntil=0;}
-function newGame(){Object.assign(g,{score:0,ball:1,extra:0,rank:0,mult:1,base:0,mission:null,mi:0,loop:0,prog:0,tilted:false,nudge:0,post:0,turbo:0,kick:[false,false],easy,recStart:g.record,recSaid:false,skill:-1,skillHit:false,combo:0,comboT:-9,jp:0,jpBump:0,mb:false,wizard:0,saveUsed:false,done:0,locks:0,lockLit:false,timers:[],saveUntil:0,dirty:true,stats:{},orbit:null});
+function newGame(){Object.assign(g,{score:0,ball:1,extra:0,rank:0,mult:1,base:0,mission:null,mi:0,loop:0,prog:0,tilted:false,nudge:0,post:0,turbo:0,kick:[false,false],easy,mbIdx:0,mbPend:[],capt:null,recStart:g.record,recSaid:false,skill:-1,skillHit:false,combo:0,comboT:-9,jp:0,jpBump:0,mb:false,wizard:0,saveUsed:false,done:0,locks:0,lockLit:false,timers:[],saveUntil:0,dirty:true,stats:{},orbit:null});
   lanes.forEach(l=>l.on=false);laneLow.forEach(l=>l.on=false);letterT.forEach(l=>l.on=false);stars.forEach(l=>l.on=false);boostT.forEach(f=>f.on=false);fuelT.forEach(f=>f.on=false);dropT.forEach(d=>d.active=true);$('overlay').hidden=true;$('iniForm').hidden=true;spawn()}
 function ballLost(){count('drain');
   if(g.balls.length)return;
@@ -417,12 +423,19 @@ function physStep(){
   }
   {const mb=g.balls.filter(b=>!b.held).length>1;if(mb&&!g.mb){g.mb=true;g.jp=0;g.jpBump=0;after(3.4,()=>{if(g.mb)say('Rampas acesas: JACKPOT!',2.2)})}
    else if(!mb&&g.mb&&g.balls.length<=1){g.mb=false;if(g.state==='play')say(`Multibola encerrada: ${g.jp} jackpot${g.jp===1?'':'s'}`,2.4)}}
+  if(g.mbPend.length&&g.state==='play'&&!g.tilted&&g.balls.length===1&&!g.balls[0].held&&!g.balls[0].cap&&g.balls[0].rail===null){const marco=g.mbPend.shift();
+    big(`${MBTXT}! ${fmt(marco)} pontos`,3.2,'multi');shake(4,350);count('scoremb');g.saveUntil=g.t+12;
+    g.balls.push(topBall());after(.6,()=>{if(g.state==='play'){g.balls.push(topBall());sfx('eject')}})}
   g.nudge=Math.max(0,g.nudge-DT*.55);
   g.t+=DT;
   for(let i=g.timers.length-1;i>=0;i--)if(g.t>=g.timers[i].at){const fn=g.timers[i].fn;g.timers.splice(i,1);fn()}
 }
 function sensors(b){
   b.nc=Math.max(0,b.nc-DT);
+  if(!g.capt&&!b.nc&&g.state==='play'&&!g.tilted&&g.balls.length===1){const dx=b.x-CAP.x,dy=b.y-CAP.y;if(dx*dx+dy*dy<CAP.r*CAP.r&&Math.hypot(b.vx,b.vy)<CAP.v){
+    b.vx=b.vy=0;add(75000);sfx('worm');count('captive');big('Bola na Cápsula de Resgate! Nova bola no lançador',2.8,'trava');shake(3,220);g.capt={until:g.t+10};
+    b.cap={x:CAP.x,y:CAP.y,until:g.t+10,done:bb=>{g.capt=null;bb.vx=(Math.random()-.5)*160;bb.vy=260;bb.nc=.8;big('Resgate concluído! Duas bolas na mesa',2.6);sfx('eject');shake(3,200)}};
+    g.balls.push(newBall(576,PLY-R,{held:true}));g.state='plunger';g.dirty=true;return}}
   for(const l of letterT)if(!l.on&&Math.abs(b.x-l.cx)<16&&Math.abs(b.y-l.cy)<16)hitLetter(999,l);
   for(const t of stars){t.cool=Math.max(0,t.cool-DT);if(t.cool===0&&Math.abs(b.x-t.x)<13&&Math.abs(b.y-t.y)<13){t.cool=.5;const was=t.on;add(was?500:2500);g.base+=150;t.on=true;if(!was){sfx('star');event('star')}
       if(stars.every(k=>k.on)){stars.forEach(k=>k.on=false);add(150000);say('Céu completo! +150.000',2);sfx('prog');count('sky')}}}
@@ -457,10 +470,10 @@ function sensors(b){
     b.cap={x:HOLE.x,y:HOLE.y,until:g.t+.9,hide:true,done:bb=>{bb.x=286;bb.y=56;bb.vx=(Math.random()-.5)*50;bb.vy=140;bb.nc=.6;sfx('eject')}};return}}
   // Órbitas
   const rim=Math.hypot(b.x-ARC.x,b.y-ARC.y)>252&&b.y<230,inL=rim&&b.x<170,inR=rim&&b.x>450;
-  if(g.orbit&&g.t-g.orbit.t>1.8)g.orbit=null;
+  if(b.orbit&&g.t-b.orbit.t>1.8)b.orbit=null;
   if(inL||inR){const side=inL?'L':'R';
-    if(g.orbit&&g.orbit.side!==side){g.orbit=null;add(40000);g.base+=3000;sfx('prog');say('Órbita! +40.000',1.3);event('orbit');shot('orbit')}
-    else if(!g.orbit)g.orbit={side,t:g.t}}
+    if(b.orbit&&b.orbit.side!==side){b.orbit=null;add(40000);g.base+=3000;sfx('prog');say('Órbita! +40.000',1.3);event('orbit');shot('orbit')}
+    else if(!b.orbit)b.orbit={side,t:g.t}}
 }
 
 /* ---------- Som ---------- */
@@ -571,6 +584,7 @@ function buildStatic(){
   for(const w of worms)holeArt(c,w.x,w.y,19,P.cyan);
   holeArt(c,CX,CY,22,P.amber);
   holeArt(c,HOLE.x,HOLE.y,18,P.magenta);
+  holeArt(c,CAP.x,CAP.y,15,P.green);plaque(c,'CÁPSULA',CAP.x+6,CAP.y-21,7.5,0);
   c.restore();
   // pistas metálicas
   metal(c,arcPts,5);
@@ -660,6 +674,7 @@ function draw(){
   if(g.mb&&blink){chevron(420,520,-1.33,P.amber,true);chevron(215,515,-1.75,P.amber,true)}
   fuelT.forEach(s=>{ctx.lineCap='round';ctx.strokeStyle=P.edge;ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(s.x1,s.y1);ctx.lineTo(s.x2,s.y2);ctx.stroke();ctx.strokeStyle=s.on?P.amber:P.cab2;ctx.lineWidth=6;ctx.stroke();lamp((s.x1+s.x2)/2+13,(s.y1+s.y2)/2-3,3.6,P.amber,s.on)});
   boostT.forEach(s=>{ctx.lineCap='round';ctx.strokeStyle=P.edge;ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(s.x1,s.y1);ctx.lineTo(s.x2,s.y2);ctx.stroke();ctx.strokeStyle=s.on?P.green:P.cab2;ctx.lineWidth=6;ctx.stroke();lamp((s.x1+s.x2)/2+15,(s.y1+s.y2)/2+4,3.6,P.green,s.on)});
+  if(g.capt){const f=Math.max(0,(g.capt.until-g.t)/10);ctx.strokeStyle=P.green;ctx.lineWidth=3.5;ctx.beginPath();ctx.arc(CAP.x,CAP.y,19,-Math.PI/2,-Math.PI/2+f*6.283);ctx.stroke()}
   for(let i=0;i<3;i++)lamp(HOLE.x-16+i*16,HOLE.y-29,4.4,P.magenta,i<g.locks||(g.lockLit&&i===g.locks&&blink));
   if(g.lockLit&&blink)chevron(HOLE.x,HOLE.y+52,-1.57,P.magenta,true);
   for(const l of laneLow)lamp(l.x,l.y,4.8,l.out?P.red:P.cyan,l.on);
@@ -778,7 +793,7 @@ requestAnimationFrame(frame);
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 /* Gancho de teste: simulação acelerada com jogador automático */
-window.__orion={shot,startWizard,lanes,releasePlunger,RANK_AT,MISSIONS,g,flips,bumpers,segs,worms,rails,HOLE,simStep:physStep,simulate(seconds){g.auto=true;const out=[];const steps=seconds/DT;let cool=[0,0];
+window.__orion={CAP,mbMarco,shot,startWizard,lanes,releasePlunger,RANK_AT,MISSIONS,g,flips,bumpers,segs,worms,rails,HOLE,simStep:physStep,simulate(seconds){g.auto=true;const out=[];const steps=seconds/DT;let cool=[0,0];
   for(let i=0;i<steps;i++){
     if(g.state==='attract'||g.state==='over'){if(g.state==='over'){out.push({score:g.score,rank:g.rank,stats:{...g.stats}})}newGame()}
     if(g.state==='plunger'&&g.balls[0]&&g.balls[0].held){g.pulling=true;g.pull=.55+Math.random()*.45;releasePlunger()}
