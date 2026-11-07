@@ -170,7 +170,7 @@ button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 
 <script>
 'use strict';
-const VERSAO = '0.9.0+n1.1.0';
+const VERSAO = '0.9.1+n1.1.0';
 const VELOCIDADE = 0.9; // 1 = velocidade original; 0.9 = 10% mais lento
 const W=620,H=1040,R=11,G=1500,DT=1/480,VMAX=2600,PLY=1000,CX=286,CY=600;
 const MX=x=>572-x, $=id=>document.getElementById(id);
@@ -333,9 +333,10 @@ function gameOver(){g.state='over';rankMe=-1;g.pend=null;if(qualifies(g.score)){
   g.dirty=true;say('Fim da patrulha',9999);sfx('over');voice('fim');$('cTitle').textContent=rec&&g.score>0?'Novo recorde!':'Fim da patrulha';
   $('cText').textContent=`${fmt(g.score)} pontos. Patente: ${RANKS[g.rank]}.`;$('start').textContent='Nova patrulha';$('overlay').hidden=false}
 function pressPlunger(){if((g.state==='plunger'||g.state==='play')&&g.balls.some(b=>b.held)){g.pulling=true;sfx('pull')}}
-const BANDS=[{lo:.33,hi:.43,nome:'curta',pts:150000},{lo:.43,hi:.50,nome:'média',pts:250000},{lo:.62,hi:.80,nome:'forte',pts:100000}];
+const LAUNCH_MIN=1450,LAUNCH=380; // força do lançador: no máximo a bola cai nas raias de cima, sem dar a volta inteira na mesa
+const BANDS=[{lo:.48,hi:.64,nome:'curta',pts:100000},{lo:.70,hi:.86,nome:'média',pts:150000},{lo:.93,hi:1.01,nome:'forte',pts:250000}];
 function releasePlunger(){if(!g.pulling)return;g.pulling=false;const b=g.balls.find(b=>b.held);
-  if(b&&g.pull>.04){if(g.skill>=0){const bd=BANDS[g.skill];g.skillHit=g.pull>=bd.lo&&g.pull<bd.hi;g.skillBand=g.skill;g.skill=-1}b.held=false;b.x=576;b.y=PLY-R-2;b.vy=-(1000+1800*g.pull);b.vx=0;sfx('launch');g.state='play';g.dirty=true;if(!g.mission)after(1.4,autoMission)}
+  if(b&&g.pull>.04){if(g.skill>=0){const bd=BANDS[g.skill];g.skillHit=g.pull>=bd.lo&&g.pull<bd.hi;g.skillBand=g.skill;g.skill=-1}b.held=false;b.x=576;b.y=PLY-R-2;b.vy=-(LAUNCH_MIN+LAUNCH*g.pull);b.vx=0;sfx('launch');g.state='play';g.dirty=true;if(!g.mission)after(1.4,autoMission)}
   else if(b)say('Segure um pouco mais antes de soltar',1.6);
   g.pull=0}
 function doNudge(){if(g.state!=='play'||g.tilted)return;g.nudge+=1;
