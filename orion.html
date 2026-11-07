@@ -170,7 +170,7 @@ button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 
 <script>
 'use strict';
-const VERSAO = '0.9.0+n1.0.0';
+const VERSAO = '0.9.0+n1.1.0';
 const VELOCIDADE = 0.9; // 1 = velocidade original; 0.9 = 10% mais lento
 const W=620,H=1040,R=11,G=1500,DT=1/480,VMAX=2600,PLY=1000,CX=286,CY=600;
 const MX=x=>572-x, $=id=>document.getElementById(id);
@@ -787,6 +787,6 @@ window.__orion={shot,startWizard,lanes,releasePlunger,RANK_AT,MISSIONS,g,flips,b
   g.auto=false;flips.forEach(f=>f.press=false);return{games:out,live:{score:g.score,rank:g.rank,stats:{...g.stats}}}}};
 </script>
 
-<script src="nuvem.js?v=1.0.0"></script>
+<script src="nuvem.js?v=1.1.0"></script>
 </body>
 </html>

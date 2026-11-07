@@ -92,6 +92,6 @@ async function check(){try{const r=await fetch(location.href,{cache:'no-store'})
 check();setInterval(check,300000);
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
-<script src="nuvem.js?v=1.0.0"></script>
+<script src="nuvem.js?v=1.1.0"></script>
 </body>
 </html>

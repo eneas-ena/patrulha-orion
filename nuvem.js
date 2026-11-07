@@ -1,7 +1,7 @@
 // Fliperama Vidas — ligação com o Supabase (ranking online, jogadores e administrador)
 (function(){
 'use strict';
-const NUVEM_VERSAO='1.0.0';
+const NUVEM_VERSAO='1.1.0';
 // ---- Projeto principal do Supabase (já preenchido) ----
 const SUPABASE_URL='https://ghjbljypxksubmcsvaig.supabase.co';
 const SUPABASE_KEY='sb_publishable_qXCYqg1WdmelY9D1mptZXg_U8NdoKby';
@@ -71,14 +71,22 @@ function initMesa(){
   const modoKey=MESA==='orion'?'orion-modo':'apoc-modo';
   const modoAtual=()=>{try{return localStorage.getItem(modoKey)==='treino'?'treino':'classico'}catch(e){return'classico'}};
   const box=document.createElement('div');box.className='nv-box';box.id='nvBox';
-  box.innerHTML='<p class="nv-h"><span>Ranking online · <span id="nvModo"></span></span><span id="nvQuem"></span></p><ol class="nv-list" id="nvList"></ol><p class="nv-msg" id="nvMsg"></p>';
+  box.innerHTML='<p class="nv-h"><span>Ranking online · <span id="nvModo"></span></span><span id="nvQuem"></span></p><ol class="nv-list" id="nvList"></ol><p class="nv-msg" id="nvMsg"></p><div id="nvJogM"></div>';
   document.getElementById('card').insertBefore(box,document.getElementById('start'));
-  const quem=()=>{const j=jogador();document.getElementById('nvQuem').textContent=j?`Jogador: ${j.i}`:'';};
+  const quem=()=>{const j=jogador();document.getElementById('nvQuem').textContent=j?`Jogador: ${j.i}`:'';jogUI()};
+  function jogUI(){const el=document.getElementById('nvJogM'),j=jogador();
+    if(j){el.innerHTML=`<p class="nv-row nv-msg">Jogando como <b>${esc(j.n)}</b> (${esc(j.i)}) <button id="nvSairM">Trocar jogador</button><button id="nvAdmM">Administrador</button></p>`;
+      document.getElementById('nvSairM').onclick=()=>{sair();quem();document.getElementById('nvMsg').textContent='Entre com outras iniciais para aparecer no ranking.'}}
+    else{el.innerHTML=`<form id="nvEntM" class="nv-row"><input id="nvIniM" class="nv-in" maxlength="3" size="4" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABC" aria-label="Iniciais">
+      <input id="nvPinM" class="nv-in" type="password" inputmode="numeric" maxlength="6" size="7" autocomplete="off" placeholder="PIN" aria-label="PIN de 6 números"><button type="submit">Entrar</button><button type="button" id="nvAdmM">Administrador</button></form>`;
+      document.getElementById('nvEntM').onsubmit=async e=>{e.preventDefault();const m=document.getElementById('nvMsg');m.textContent='Conferindo…';
+        try{const jj=await entrar(document.getElementById('nvIniM').value.trim().toUpperCase(),document.getElementById('nvPinM').value.trim());document.activeElement&&document.activeElement.blur();mostrar(modoAtual(),`<span class="nv-ok">Bem-vindo, ${esc(jj.n)}! Suas partidas vão para o ranking.</span>`)}catch(er){m.textContent=er.message}}}
+    document.getElementById('nvAdmM').onclick=()=>{document.activeElement&&document.activeElement.blur();openAdmin()}}
   async function mostrar(modo,aviso){document.getElementById('nvModo').textContent=modo==='treino'?'Treino':'Clássico';quem();
     const msg=document.getElementById('nvMsg');if(aviso!==undefined){msg.innerHTML=aviso}
     try{const rows=await ranking(MESA,modo,10);const j=jogador();document.getElementById('nvList').innerHTML=listHTML(rows,j&&j.i);
       if(!rows.length&&aviso===undefined)msg.textContent='Ninguém no ranking ainda. Seja o primeiro!';
-      else if(aviso===undefined)msg.textContent=jogador()?'':'Entre como jogador na tela de mesas para aparecer aqui.'}
+      else if(aviso===undefined)msg.textContent=jogador()?'':'Entre com suas iniciais e PIN para aparecer aqui.'}
     catch(e){if(aviso===undefined)msg.textContent='Ranking online indisponível: '+e.message}}
   const ng=window.newGame;window.newGame=function(){const r=ng.apply(this,arguments);g.t0=g.t;return r};
   const go=window.gameOver;window.gameOver=function(){const r=go.apply(this,arguments);const modo=g.easy?'treino':'classico';const j=jogador();
