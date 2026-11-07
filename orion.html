@@ -90,6 +90,23 @@ button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 #rankList{margin:0;padding:0;list-style:none;display:grid;gap:3px;text-align:left;font-variant-numeric:tabular-nums;max-height:34vh;overflow:auto}
 #rankList li{display:grid;grid-template-columns:3ch 4ch minmax(0,1fr) auto;gap:8px;font-size:13.5px}#rankList li span:nth-child(3){color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#rankList li.me{color:var(--accent);font-weight:600}
 #start{font:14px var(--display);padding:13px;background:var(--accent);color:var(--panel);border:0}
+#pauseBox{position:fixed;inset:0;z-index:7;display:grid;place-items:center;background:rgba(0,0,0,.45);pointer-events:auto}
+#pauseBox>div{background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:18px 20px;text-align:center;display:grid;gap:8px;max-width:min(320px,86vw)}
+#pauseBox p{margin:0}.pz{font:400 22px var(--display);color:var(--accent)}
+.linkbtn{background:none;border:0;color:var(--accent);text-decoration:underline;justify-self:center;padding:2px}
+#help{position:fixed;inset:0;z-index:8;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:12px}
+#helpSheet{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:10px;width:min(760px,100%);max-height:calc(100vh - 24px);overflow:auto;padding:16px 18px;box-sizing:border-box;display:grid;gap:14px;line-height:1.45;-webkit-user-select:text;user-select:text}
+#helpSheet h2{margin:0;font:400 20px var(--display);color:var(--accent);text-wrap:balance}
+#helpSheet h3{margin:0 0 4px;font:600 13px var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+#helpSheet p,#helpSheet ul,#helpSheet ol{margin:0}#helpSheet ul,#helpSheet ol{padding-left:1.2em;display:grid;gap:3px}
+#helpSheet .mapa{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:14px;align-items:start}
+#helpSheet canvas{width:100%;height:auto;border-radius:110px 110px 6px 6px}
+#helpSheet .leg{list-style:none;padding:0;columns:1}
+#helpSheet .leg li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:6px;align-items:start}
+#helpSheet .n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:var(--panel);font:600 11.5px var(--body)}
+#helpSheet .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#helpSheet b{color:var(--fg)}
+@media (max-width:560px){#helpSheet .mapa{grid-template-columns:1fr}#helpSheet canvas{max-width:240px;justify-self:center}}
 #toast{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:9;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;display:flex;gap:10px;align-items:center;max-width:calc(100% - 32px)}
 @media (max-aspect-ratio:1/1){
   #app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:8px}
@@ -123,6 +140,7 @@ button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
         <p id="cText">Cumpra missões e suba de patente, de Cadete a Almirante de Frota. Você tem 3 bolas.</p>
         <form id="iniForm" hidden><label for="ini">Você entrou no ranking! Digite suas iniciais:</label><div class="iniRow"><input id="ini" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC"><button type="submit">Salvar</button></div></form>
         <div id="rankBox" hidden><p class="rh">Os 10 melhores neste aparelho</p><ol id="rankList"></ol></div>
+        <button id="btnHelp2" type="button" class="linkbtn">Como jogar</button>
         <button id="start">Iniciar patrulha</button>
       </div>
     </div>
@@ -155,6 +173,8 @@ button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
       <button id="keyReset" hidden>Restaurar teclas</button>
     </div>
     <div id="tools">
+      <button id="btnPause" aria-pressed="false">Pausar</button>
+      <button id="btnHelp">Como jogar</button>
       <button id="btnTheme" class="icon" aria-label="Alternar modo claro e escuro" title="Modo claro ou escuro"></button>
       <button id="btnSound" aria-pressed="true">Som</button>
       <button id="btnMusic" aria-pressed="false">Música</button>
@@ -166,11 +186,13 @@ button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
     </div>
   </aside>
 </div>
+<div id="pauseBox" hidden><div><p class="pz">Pausado</p><p>Toque na mesa, aperte Esc ou o botão para continuar.</p><button id="btnResume">Continuar</button></div></div>
+<div id="help" hidden><div id="helpSheet" role="dialog" aria-modal="true" aria-labelledby="helpT"></div></div>
 <div id="toast" hidden><span>Há uma versão nova.</span><button id="btnToast">Atualizar agora</button></div>
 
 <script>
 'use strict';
-const VERSAO = '0.10.0+n1.1.0';
+const VERSAO = '0.11.0+n1.1.0';
 const VELOCIDADE = 0.9; // 1 = velocidade original; 0.9 = 10% mais lento
 const W=620,H=1040,R=11,G=1500,DT=1/480,VMAX=2600,PLY=1000,CX=286,CY=600;
 const MX=x=>572-x, $=id=>document.getElementById(id);
@@ -505,7 +527,7 @@ function sfx(n){if(g.auto||!soundOn||!ac)return;SFX[n]&&SFX[n]()}
 const BASS=[55,55,82.4,55,65.4,65.4,98,65.4,49,49,73.4,49,61.7,61.7,92.5,73.4],ARP=[440,0,659,0,523,659,0,784,392,0,587,0,494,587,0,740];let mStep=0;
 const KEYS=[0,0,2,2,3,5,5,7]; // a música sobe de tom conforme a patente
 function musicTick(){if(!musicOn)return;const wz=g.t<g.wizard,fast=g.mb||wz;
-  if(ac&&soundOn&&!(cfgOpen&&portrait.matches)){const sh=Math.pow(2,(KEYS[g.rank]+(wz?5:0))/12),i=mStep++%16;tone(BASS[i]*sh,.2,'triangle',.11);if(ARP[i])tone(ARP[i]*sh,.13,'square',.016);
+  if(ac&&soundOn&&!(cfgOpen&&portrait.matches)&&!paused){const sh=Math.pow(2,(KEYS[g.rank]+(wz?5:0))/12),i=mStep++%16;tone(BASS[i]*sh,.2,'triangle',.11);if(ARP[i])tone(ARP[i]*sh,.13,'square',.016);
     if(fast&&i%2)tone((ARP[(i+3)%16]||660)*sh*2,.06,'square',.011);if(fast&&i%4===0)noise(.04,.05,0,6000)}
   musicTimer=setTimeout(musicTick,fast?118:165)}
 function setMusic(on){musicOn=on;$('btnMusic').setAttribute('aria-pressed',on);clearTimeout(musicTimer);if(on){ensureAudio();musicTick()}}
@@ -724,8 +746,8 @@ function hud(){
   const playing=g.state==='plunger'||g.state==='play';$('btnLaunch').hidden=!g.balls.some(b=>b.held);$('btnNudge').hidden=!playing||g.state==='plunger'||g.balls.some(b=>b.held);
   $('card').hidden=false;
 }
-let last=0,acc=0,lastState='',cfgOpen=false;const portrait=matchMedia('(max-aspect-ratio: 1/1)');
-function frame(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;if(cfgOpen&&portrait.matches)acc=0;else acc+=dt*VELOCIDADE;let n=0;while(acc>=DT&&n<60){physStep();acc-=DT;n++}if(n===60)acc=0;
+let last=0,acc=0,lastState='',cfgOpen=false,paused=false,pauseByHelp=false;const portrait=matchMedia('(max-aspect-ratio: 1/1)');
+function frame(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;if((cfgOpen&&portrait.matches)||paused)acc=0;else acc+=dt*VELOCIDADE;let n=0;while(acc>=DT&&n<60){physStep();acc-=DT;n++}if(n===60)acc=0;
   if(g.state!==lastState){lastState=g.state;g.dirty=true}hud();draw();requestAnimationFrame(frame)}
 
 /* ---------- Controles ---------- */
@@ -746,7 +768,10 @@ function captureKey(e){e.preventDefault();e.stopImmediatePropagation();const i=k
   const cur=keyCustom||{L:{code:'ArrowLeft',label:'←'},R:{code:'ArrowRight',label:'→'}},other=i?cur.L:cur.R;
   if(code===other.code){$('keyHelp').textContent=`Essa tecla já é do rebatedor ${i?'esquerdo':'direito'}. Escolha outra ou aperte Esc.`;return}
   const novo={code,label:keyName(code,e.key)};keyCustom=i?{L:cur.L,R:novo}:{L:novo,R:cur.R};store.set('orion-teclas',JSON.stringify(keyCustom));keyWait=null;$('keyHelp').textContent=`Pronto: ${i?'direito':'esquerdo'} agora é ${novo.label}.`;applyKeys()}
-addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;if(keyWait!==null){captureKey(e);return}if(e.repeat){if(e.code==='Space'||e.code.startsWith('Arrow'))e.preventDefault();return}ensureAudio();
+addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;if(keyWait!==null){captureKey(e);return}
+  if(!$('help').hidden){if(e.code==='Escape')closeHelp();return}
+  if((e.code==='Escape'||e.code==='KeyP')&&!e.repeat){e.preventDefault();setPause(!paused);return}
+  if(paused){if(e.code==='Space'||e.code.startsWith('Arrow'))e.preventDefault();return}if(e.repeat){if(e.code==='Space'||e.code.startsWith('Arrow'))e.preventDefault();return}ensureAudio();
   if(e.code in keys){e.preventDefault();flip(keys[e.code],true)}
   else if(e.code==='Space'||e.code==='ArrowDown'){e.preventDefault();if(document.activeElement&&document.activeElement.tagName==='BUTTON')document.activeElement.blur();if(g.state==='attract'||g.state==='over')newGame();else pressPlunger()}
   else if(e.code==='ArrowUp'||e.code==='KeyX'){e.preventDefault();doNudge()}});
@@ -755,6 +780,7 @@ addEventListener('blur',()=>{g.pulling=false;g.pull=0;flip(0,false);flip(1,false
 const ptrs=new Map(),stage=$('stage');
 const updFlips=()=>{const v=[...ptrs.values()];flip(0,v.includes(0));flip(1,v.includes(1))};
 stage.addEventListener('pointerdown',e=>{if(e.target.closest('button,#card'))return;ensureAudio();
+  if(paused){setPause(false);e.preventDefault();return}
   if(cfgOpen){toggleCfg(false);e.preventDefault();return}
   if(g.state==='plunger'&&g.balls.length===1&&g.balls[0].held){ptrs.set(e.pointerId,'p');pressPlunger();e.preventDefault();return}
  const r=stage.getBoundingClientRect();ptrs.set(e.pointerId,e.clientX<r.left+r.width/2?0:1);updFlips();e.preventDefault()});
@@ -772,6 +798,46 @@ $('keyL').addEventListener('click',()=>startKeyWait(0));$('keyR').addEventListen
 $('keyReset').addEventListener('click',()=>{keyCustom=null;keyWait=null;store.set('orion-teclas','null');$('keyHelp').textContent='Teclas originais restauradas.';applyKeys();$('keyReset').blur()});
 function toggleCfg(on){cfgOpen=on;$('panel').classList.toggle('open',on);$('btnCfg').setAttribute('aria-expanded',on);$('btnCfg').setAttribute('aria-label',on?'Fechar ajustes':'Abrir ajustes');flip(0,false);flip(1,false);g.pulling=false;g.pull=0}
 $('btnCfg').addEventListener('click',()=>{toggleCfg(!cfgOpen);$('btnCfg').blur()});
+const HELP={"ver": ["'0.10.0'", "'0.11.0'"], "mesa": "Patrulha Órion", "estacao": "Estação", "rampD": "Hiperespaço", "rampE": "Decolagem", "hole": "Buraco Negro", "cap": "Cápsula de Resgate", "capSolta": "Resgate concluído", "letras": "Ó-R-I-O-N", "sinal": "Sinal", "comb": "Combustível", "reforco": "Reforço", "orbita": "Órbitas", "portas": "Dobras (buracos de minhoca)", "raias": "Raias", "turb": "Turbinas", "bump": "Para-choques", "final": "Batalha de Órion", "bolaExtra": "Capitão e Almirante"};
+function canPause(){return g.state==='play'||g.state==='plunger'||g.state==='bonus'}
+function setPause(on){if(on&&!canPause())return;paused=on;$('pauseBox').hidden=!on||!$('help').hidden;$('btnPause').setAttribute('aria-pressed',on);$('btnPause').textContent=on?'Continuar':'Pausar';
+  flips.forEach(f=>f.press=false);g.pulling=false;g.pull=0;if(on){try{ptrs.clear()}catch(e){}}last=performance.now()}
+$('btnPause').addEventListener('click',()=>{setPause(!paused);$('btnPause').blur()});$('btnResume').addEventListener('click',()=>setPause(false));
+$('pauseBox').addEventListener('pointerdown',e=>{if(e.target.id==='pauseBox'){e.preventDefault();setPause(false)}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&canPause()&&!paused)setPause(true)});
+addEventListener('blur',()=>{if(canPause()&&!paused&&!document.hasFocus())setPause(true)});
+function helpMap(){const c=document.createElement('canvas'),S=230/W;c.width=Math.round(W*S*2);c.height=Math.round(H*S*2);const x=c.getContext('2d');x.drawImage(base,0,0,c.width,c.height);x.drawImage(over,0,0,c.width,c.height);
+  const k=c.width/W;x.font='600 '+Math.round(13*k*1.6)+'px "Chakra Petch",sans-serif';x.textAlign='center';x.textBaseline='middle';
+  HELP_PTS.forEach(([px,py],i)=>{x.fillStyle='#ffc83d';x.strokeStyle='#160a10';x.lineWidth=3*k;x.beginPath();x.arc(px*k,py*k,12*k*1.4,0,7);x.fill();x.stroke();x.fillStyle='#160a10';x.fillText(i+1,px*k,py*k+1)});return c}
+const HELP_PTS=[[576,900],[CX,CY],[282,230],[475,378],[197,420],[HOLE.x,HOLE.y],[CAP.x,CAP.y],[letterT[1].cx,letterT[1].cy],[316,414],[112,545],[489,575],[40,600],[125,393],[286,95],[49,430],[43,840]];
+function openHelp(){if(canPause()&&!paused){setPause(true);pauseByHelp=true}const h=HELP,m=MISSIONS,fm=n=>fmt(n);
+  const leg=[['Lançador','segure e solte. Se soltar com o medidor na <b>faixa verde</b>, ganha o Lançamento de precisão (até 250 mil).'],
+   [h.estacao,'adianta em 1 passo a missão em andamento e vale 30 mil.'],[h.bump,'pontos a cada toque; contam para várias missões e aumentam o Jackpot.'],
+   [h.rampD+' (rampa da direita)','acende a trava do '+h.hole+' e, na multibola, vale <b>Jackpot</b>.'],[h.rampE+' (rampa da esquerda)','leva a bola ao alto e, na multibola, também vale Jackpot.'],
+   [h.hole,'com a trava acesa, guarda a bola. Com 3 bolas guardadas começa a <b>multibola de 3 bolas</b>. Sem a trava, dá um prêmio-surpresa.'],
+   [h.cap,'buraco difícil: prende a bola por <b>10 segundos</b> e manda outra para o lançador. Depois você joga com as duas.'],
+   ['Letras '+h.letras,'passe por cima para acender. A palavra completa vale 150 mil e liga o pino de proteção.'],[h.sinal,'alvos que caem; os três derrubados armam os retornos das saídas.'],
+   [h.comb,'três alvos na ilha da esquerda; completos ligam o pino entre os rebatedores.'],[h.reforco,'três alvos na ilha da direita; completos dobram os pontos dos '+h.bump.toLowerCase()+' por 20 s.'],
+   [h.orbita,'contorne a mesa por fora, de um lado ao outro.'],[h.portas,'a bola entra numa e sai na outra.'],[h.raias,'as três acesas aumentam o multiplicador de bônus (até 5×).'],
+   [h.turb,'giram com a velocidade da bola e pontuam a cada volta.'],['Saídas e retornos','cair na saída lateral dá pontos, mas é perigoso. Com o retorno aceso (luz verde), a bola volta à mesa.']];
+  const marcos=[0,1,2,3,4,5,6].map(i=>fm(mbMarco(i))).join(', ');
+  $('helpSheet').innerHTML=`<div class="top"><h2 id="helpT">Como jogar · ${h.mesa}</h2><button id="helpX">Fechar</button></div>
+  <section><h3>O objetivo</h3><p>Faça o máximo de pontos com 3 bolas. Quem entra com as iniciais e o PIN aparece no ranking online. Use os rebatedores para manter a bola em jogo e mire nos alvos para cumprir missões e ganhar multibolas.</p></section>
+  <section><h3>Controles</h3><ul><li><b>Rebatedores:</b> setas ← e →, ou Z e ponto (dá para trocar nos ajustes). No iPad e no celular, toque na metade esquerda ou direita da mesa.</li>
+   <li><b>Lançar:</b> segure a barra de espaço (ou o dedo na mesa) e solte.</li><li><b>Cutucar a mesa:</b> seta ↑ ou o botão Cutucar. Cutucar demais dá <b>Tilt</b>: os rebatedores desligam e você perde o bônus da bola.</li>
+   <li><b>Pausar:</b> Esc, P ou o botão Pausar. O jogo também pausa sozinho se você sair do app.</li></ul></section>
+  <section><h3>O que tem na mesa</h3><div class="mapa"><div id="helpMap"></div><ol class="leg">${leg.map((l,i)=>`<li><span class="n">${i+1}</span><span><b>${l[0]}:</b> ${l[1]}</span></li>`).join('')}</ol></div></section>
+  <section><h3>Multibola</h3><ul><li><b>Por pontos:</b> uma bola extra entra pelo alto ao chegar a ${marcos} pontos, e depois a cada 4 milhões. O letreiro avisa quanto falta.</li>
+   <li><b>Pela trava:</b> 3 bolas guardadas no ${h.hole} saem juntas.</li><li><b>Jackpot:</b> durante a multibola, as rampas valem Jackpot; o 3º vira <b>Super Jackpot</b> (triplo).</li><li>Nos primeiros 12 segundos, um escudo devolve a bola que cair.</li></ul></section>
+  <section><h3>Missões e patentes</h3><p>A missão seguinte começa sozinha. Cada missão cumprida dá pontos e o faz subir de patente: <b>${RANKS.join(' → ')}</b>. Há bola extra ao chegar a ${h.bolaExtra}. Ao chegar à última patente começa o modo final, <b>${h.final}</b>: 45 segundos com 3 bolas e tudo valendo o dobro.</p>
+   <ol>${m.map(x=>`<li><b>${x.nome}:</b> ${x.txt.replace('{n}',x.n)}</li>`).join('')}</ol></section>
+  <section><h3>Dicas</h3><ul><li><b>Combos:</b> acerte rampas, órbitas e buracos com menos de 4 segundos entre eles; o prêmio cresce rápido.</li>
+   <li>Nos primeiros segundos de cada bola, um escudo devolve a bola uma vez.</li><li><b>Modo Treino</b> (nos ajustes): pino central, retornos armados e escudo maior. Bom para quem está começando; no ranking aparece marcado como treino.</li>
+   <li>A bola parada é solta sozinha depois de alguns segundos.</li></ul></section>`;
+  $('helpMap').appendChild(helpMap());$('help').hidden=false;$('pauseBox').hidden=true;$('helpX').onclick=closeHelp;$('helpX').focus()}
+function closeHelp(){$('help').hidden=true;if(pauseByHelp){pauseByHelp=false;setPause(false)}else if(paused)$('pauseBox').hidden=false}
+$('help').addEventListener('pointerdown',e=>{if(e.target.id==='help')closeHelp()});
+$('btnHelp').addEventListener('click',()=>{openHelp();$('btnHelp').blur()});$('btnHelp2').addEventListener('click',openHelp);
 $('btnUpdate').addEventListener('click',refresh);$('btnToast').addEventListener('click',refresh);
 async function checkVersion(){try{const r=await fetch(location.href,{cache:'no-store'});if(!r.ok)return;const t=await r.text(),m=t.match(/const VERSAO = '([^']+)'/);if(m&&m[1]!==VERSAO)$('toast').hidden=false}catch(e){}}
 
