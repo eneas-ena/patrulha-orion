@@ -43,6 +43,10 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .stat{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 .rec{font:900 22px var(--dot);font-variant-numeric:tabular-nums;color:var(--fg)}
 .play{display:inline-block;margin-top:10px;font:13px var(--display);color:var(--accent)}
+
+.nv-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.nv-wrap>p{grid-column:1/-1;margin:0}
+.nv-panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:10px;align-content:start;min-width:0}
+.nv-title{margin:0;font:400 15px var(--display);color:var(--accent)}
 footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px}
 #toast{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;display:flex;gap:10px;align-items:center;max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:reduce){.table{transition:none}}
@@ -66,11 +70,12 @@ footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:
         <div class="stat">Seu recorde</div><div class="rec" id="recApoc">0</div><span class="play">Jogar →</span></div>
     </a>
   </section>
-  <footer><span>Os recordes ficam salvos neste aparelho.</span><span id="ver"></span></footer>
+  <div id="nuvem" class="nv-wrap"></div>
+  <footer><span>Os recordes da ficha ficam salvos neste aparelho; o ranking online vale para todos.</span><span id="ver"></span></footer>
 </main>
 <div id="toast" hidden><span>Há uma versão nova.</span><button id="btnToast">Atualizar agora</button></div>
 <script>
-const VERSAO = '1.0.0';
+const VERSAO = '1.1.0';
 const $=id=>document.getElementById(id);
 const get=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 $('ver').textContent='v'+VERSAO;
@@ -87,5 +92,6 @@ async function check(){try{const r=await fetch(location.href,{cache:'no-store'})
 check();setInterval(check,300000);
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
+<script src="nuvem.js?v=1.0.0"></script>
 </body>
 </html>
