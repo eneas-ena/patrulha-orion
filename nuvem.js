@@ -1,7 +1,7 @@
 // Fliperama Vidas — ligação com o Supabase (ranking online, jogadores e administrador)
 (function(){
 'use strict';
-const NUVEM_VERSAO='1.1.0';
+const NUVEM_VERSAO='1.2.0';
 // ---- Projeto principal do Supabase (já preenchido) ----
 const SUPABASE_URL='https://ghjbljypxksubmcsvaig.supabase.co';
 const SUPABASE_KEY='sb_publishable_qXCYqg1WdmelY9D1mptZXg_U8NdoKby';
@@ -39,6 +39,8 @@ async function registrar(p){const j=jogador();if(!j)return{ok:false,erro:'sem jo
   const x={p_iniciais:j.i,p_pin:j.p,p_mesa:p.mesa,p_modo:p.modo,p_pontos:Math.round(p.pontos),p_patente:p.patente|0,p_missoes:p.missoes|0,p_duracao:p.duracao|0,p_versao:p.versao||null};
   const f=ls.get('fliper-fila',[]);f.push(x);ls.set('fliper-fila',f.slice(-30));
   try{const d=await enviarFila();if(ls.get('fliper-fila',[]).some(y=>y.p_pontos===x.p_pontos&&y.p_mesa===x.p_mesa&&y.p_iniciais===x.p_iniciais))return{ok:false,fila:true};return d||{ok:false,fila:true}}catch(e){return{ok:false,erro:e.message,fila:true}}}
+async function progresso(){const j=jogador();let d=null;if(j){try{d=await rpc('pinball_progresso',{p_iniciais:j.i,p_pin:j.p});if(!d||!d.ok)d=null}catch(e){d=null}}
+  window.dispatchEvent(new CustomEvent('nuvem-progresso',{detail:d}));return d}
 const ranking=(mesa,modo,lim)=>rpc('pinball_ranking',{p_mesa:mesa,p_modo:modo||'classico',p_limite:lim||10});
 window.addEventListener('online',()=>{enviarFila().catch(()=>{})});
 
@@ -67,8 +69,8 @@ function listHTML(rows,meIni){if(!rows||!rows.length)return'';return rows.map(r=
 // ================= Mesa (dentro do jogo) =================
 function initMesa(){
   const O=window.__orion;if(!O||!document.getElementById('card'))return;const g=O.g;
-  const MESA=/apocalipse/.test(location.pathname)?'apocalipse':'orion';
-  const modoKey=MESA==='orion'?'orion-modo':'apoc-modo';
+  const K=(typeof KEY!=='undefined')?KEY:'orion';const MESA={orion:'orion',apoc:'apocalipse'}[K]||K;
+  const modoKey=K+'-modo';
   const modoAtual=()=>{try{return localStorage.getItem(modoKey)==='treino'?'treino':'classico'}catch(e){return'classico'}};
   const box=document.createElement('div');box.className='nv-box';box.id='nvBox';
   box.innerHTML='<p class="nv-h"><span>Ranking online · <span id="nvModo"></span></span><span id="nvQuem"></span></p><ol class="nv-list" id="nvList"></ol><p class="nv-msg" id="nvMsg"></p><div id="nvJogM"></div>';
@@ -112,18 +114,18 @@ function initMenu(){
   let mesa='orion',modo='classico';
   function jogUI(){const j=jogador(),el=document.getElementById('nvJog');
     if(j){el.innerHTML=`<p class="nv-row"><span>Jogando como <b>${esc(j.n)}</b> (${esc(j.i)})</span><button id="nvSair">Sair</button></p><p class="nv-msg">Suas partidas vão para o ranking online.</p>`;
-      document.getElementById('nvSair').onclick=()=>{sair();jogUI();rankUI()}}
+      document.getElementById('nvSair').onclick=()=>{sair();jogUI();rankUI();progresso()}}
     else{el.innerHTML=`<form id="nvEnt" class="nv-row"><label class="nv-msg" for="nvIni">Iniciais</label><input id="nvIni" class="nv-in" maxlength="3" size="4" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABC">
       <label class="nv-msg" for="nvPin">PIN</label><input id="nvPin" class="nv-in" type="password" inputmode="numeric" maxlength="6" size="7" autocomplete="off" placeholder="6 números"><button type="submit">Entrar</button></form><p class="nv-msg" id="nvEntMsg">Sem entrar, você joga normalmente, mas não aparece no ranking online.</p>`;
       document.getElementById('nvEnt').onsubmit=async e=>{e.preventDefault();const m=document.getElementById('nvEntMsg');m.textContent='Conferindo…';
-        try{await entrar(document.getElementById('nvIni').value.trim().toUpperCase(),document.getElementById('nvPin').value.trim());jogUI();rankUI()}catch(er){m.textContent=er.message}}}}
+        try{await entrar(document.getElementById('nvIni').value.trim().toUpperCase(),document.getElementById('nvPin').value.trim());jogUI();rankUI();progresso()}catch(er){m.textContent=er.message}}}}
   async function rankUI(){root.querySelectorAll('[data-mesa]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mesa===mesa));root.querySelectorAll('[data-modo]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.modo===modo));
     const m=document.getElementById('nvMMsg');m.textContent='Carregando…';
     try{const rows=await ranking(mesa,modo,10);const j=jogador();document.getElementById('nvMList').innerHTML=listHTML(rows,j&&j.i);m.textContent=rows.length?'':'Ninguém no ranking ainda.'}
     catch(e){document.getElementById('nvMList').innerHTML='';m.textContent='Ranking indisponível: '+e.message}}
   root.querySelectorAll('[data-mesa]').forEach(b=>b.onclick=()=>{mesa=b.dataset.mesa;rankUI()});root.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{modo=b.dataset.modo;rankUI()});
   document.getElementById('nvAdmBtn').onclick=openAdmin;
-  jogUI();rankUI();
+  jogUI();rankUI();progresso();
   enviarFila().then(()=>{const n=ls.get('fliper-fila',[]).length;document.getElementById('nvFila').textContent=n?`${n} partida(s) aguardando envio`:''}).catch(()=>{});
 }
 
@@ -144,7 +146,7 @@ function openAdmin(){
       <div class="nv-row"><label class="nv-msg" for="nvFP">PIN</label><input id="nvFP" class="nv-in" inputmode="numeric" maxlength="6" size="7" autocomplete="off" placeholder="6 números">
       <label class="nv-msg"><input type="checkbox" id="nvFA" checked> Ativo</label><button type="submit">Salvar jogador</button><button type="button" id="nvFC">Limpar</button></div>
       <p class="nv-msg">Para alterar alguém, toque em Editar. Com o PIN em branco, o PIN atual é mantido.</p></form>
-    <p class="nv-msg" id="nvPM">${aviso||'Carregando…'}</p><div class="nv-scroll"><table class="nv-table"><thead><tr><th>Ini.</th><th>Nome</th><th>Partidas</th><th>Órion</th><th>Apocalipse</th><th></th></tr></thead><tbody id="nvTB"></tbody></table></div>
+    <p class="nv-msg" id="nvPM">${aviso||'Carregando…'}</p><div class="nv-scroll"><table class="nv-table"><thead><tr><th>Ini.</th><th>Nome</th><th>Partidas</th><th>Órion</th><th>Apocalipse</th><th>Mesas</th><th></th></tr></thead><tbody id="nvTB"></tbody></table></div>
     <div class="nv-row"><button id="nvZT">Zerar todas as partidas</button><button id="nvSairA">Sair do administrador</button><button id="nvFX">Fechar</button></div>`;
     const F={i:document.getElementById('nvFI'),n:document.getElementById('nvFN'),p:document.getElementById('nvFP'),a:document.getElementById('nvFA')};
     document.getElementById('nvFX').onclick=close;document.getElementById('nvSairA').onclick=()=>{ss.del('fliper-admin');loginUI('Você saiu.')};
@@ -157,16 +159,19 @@ function openAdmin(){
       if(!F.n.value.trim()){document.getElementById('nvPM').textContent='Informe o nome.';return}
       if(F.p.value&&!/^\d{6}$/.test(F.p.value)){document.getElementById('nvPM').textContent='O PIN precisa ter 6 números.';return}
       call('pinball_admin_salvar_jogador',{p_iniciais:i,p_nome:F.n.value.trim(),p_pin:F.p.value||null,p_ativo:F.a.checked},`Jogador ${i} salvo.`)};
-    try{const rows=await rpc('pinball_admin_listar',{},s.token);const tb=document.getElementById('nvTB');document.getElementById('nvPM').textContent=aviso||(rows.length?`${rows.length} jogador(es).`:'Nenhum jogador ainda. Cadastre o primeiro acima.');
-      tb.innerHTML=rows.map(r=>`<tr><td><b>${esc(r.iniciais)}</b></td><td>${esc(r.nome)}${r.ativo?'':' <span class="nv-msg">(inativo)</span>'}</td><td>${r.partidas}</td><td>${r.melhor_orion?fmt(r.melhor_orion):'–'}</td><td>${r.melhor_apocalipse?fmt(r.melhor_apocalipse):'–'}</td>
+    try{const rows=await rpc('pinball_admin_listar',{},s.token);let libs=[];try{libs=await rpc('pinball_admin_liberacoes',{},s.token)||[]}catch(e){}
+      const libDe=i=>{const x=libs.find(l=>l.iniciais===i);return x?x.mesas:[]};const tb=document.getElementById('nvTB');document.getElementById('nvPM').textContent=aviso||(rows.length?`${rows.length} jogador(es).`:'Nenhum jogador ainda. Cadastre o primeiro acima.');
+      tb.innerHTML=rows.map(r=>`<tr><td><b>${esc(r.iniciais)}</b></td><td>${esc(r.nome)}${r.ativo?'':' <span class="nv-msg">(inativo)</span>'}</td><td>${r.partidas}</td><td>${r.melhor_orion?fmt(r.melhor_orion):'–'}</td><td>${r.melhor_apocalipse?fmt(r.melhor_apocalipse):'–'}</td><td>${libDe(r.iniciais).length>=5?'<button data-tl="'+esc(r.iniciais)+'">Tirar liberação</button>':'<button data-lb="'+esc(r.iniciais)+'">Liberar todas</button>'}</td>
         <td class="nv-row"><button data-ed="${esc(r.iniciais)}">Editar</button><button data-zr="${esc(r.iniciais)}">Zerar</button><button data-ex="${esc(r.iniciais)}">Excluir</button></td></tr>`).join('');
       tb.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{const r=rows.find(x=>x.iniciais===b.dataset.ed);F.i.value=r.iniciais;F.i.readOnly=true;F.n.value=r.nome;F.p.value='';F.a.checked=r.ativo;F.n.focus()});
+      tb.querySelectorAll('[data-lb]').forEach(b=>b.onclick=()=>call('pinball_admin_liberar',{p_iniciais:b.dataset.lb,p_mesa:'todas',p_liberar:true},`Todas as mesas liberadas para ${b.dataset.lb}.`));
+      tb.querySelectorAll('[data-tl]').forEach(b=>b.onclick=()=>call('pinball_admin_liberar',{p_iniciais:b.dataset.tl,p_mesa:'todas',p_liberar:false},`Liberação manual retirada de ${b.dataset.tl}. As mesas abertas pelo jogo continuam abertas.`));
       tb.querySelectorAll('[data-zr]').forEach(b=>confirma(b,'Confirmar',()=>call('pinball_admin_zerar',{p_iniciais:b.dataset.zr},`Partidas de ${b.dataset.zr} apagadas.`)));
       tb.querySelectorAll('[data-ex]').forEach(b=>confirma(b,'Confirmar',()=>call('pinball_admin_excluir',{p_iniciais:b.dataset.ex},`Jogador ${b.dataset.ex} excluído.`)))}
     catch(e){if(/expirada/.test(e.message)){ss.del('fliper-admin');loginUI(e.message)}else document.getElementById('nvPM').textContent=e.message}}
   adminSess()?painel():loginUI();
 }
 
-window.nuvem={versao:NUVEM_VERSAO,jogador,entrar,sair,ranking,registrar,enviarFila};
+window.nuvem={versao:NUVEM_VERSAO,jogador,entrar,sair,ranking,registrar,enviarFila,progresso};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{initMenu();initMesa()});else{initMenu();initMesa()}
 })();
