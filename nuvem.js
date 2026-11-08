@@ -1,7 +1,7 @@
 // Fliperama Vidas — ligação com o Supabase (ranking online, jogadores e administrador)
 (function(){
 'use strict';
-const NUVEM_VERSAO='1.5.0';
+const NUVEM_VERSAO='1.5.1';
 // ---- Projeto principal do Supabase (já preenchido) ----
 const SUPABASE_URL='https://ghjbljypxksubmcsvaig.supabase.co';
 const SUPABASE_KEY='sb_publishable_qXCYqg1WdmelY9D1mptZXg_U8NdoKby';
@@ -21,7 +21,7 @@ async function rpc(fn,args,token){
 async function adminLogin(email,senha){
   let r;try{r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password:senha})})}catch(e){throw new Error('Sem conexão com a internet')}
   const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(/invalid login/i.test(d.error_description||d.msg||'')?'E-mail ou senha incorretos':(d.error_description||d.msg||'E-mail ou senha incorretos'));
-  const s={token:d.access_token,ate:Date.now()+((d.expires_in||3600)-60)*1000,email:(d.user&&d.user.email)||email};ss.set('fliper-admin',s);return s}
+  const s={token:d.access_token,ate:Date.now()+((d.expires_in||3600)-60)*1000,email:(d.user&&d.user.email)||email};ss.set('fliper-admin',s);try{localStorage.setItem('fliper-adm','1')}catch(e){}window.dispatchEvent(new CustomEvent('nuvem-admin',{detail:true}));return s}
 function adminSess(){const s=ss.get('fliper-admin');return s&&s.ate>Date.now()?s:null}
 
 // ---- Jogador ----
@@ -149,7 +149,7 @@ function openAdmin(){
     <p class="nv-msg" id="nvPM">${aviso||'Carregando…'}</p><div class="nv-scroll"><table class="nv-table"><thead><tr><th>Ini.</th><th>Nome</th><th>Partidas</th><th>Órion</th><th>Apocalipse</th><th>Mesas</th><th></th></tr></thead><tbody id="nvTB"></tbody></table></div>
     <div class="nv-row"><button id="nvZT">Zerar todas as partidas</button><button id="nvSairA">Sair do administrador</button><button id="nvFX">Fechar</button></div>`;
     const F={i:document.getElementById('nvFI'),n:document.getElementById('nvFN'),p:document.getElementById('nvFP'),a:document.getElementById('nvFA')};
-    document.getElementById('nvFX').onclick=close;document.getElementById('nvSairA').onclick=()=>{ss.del('fliper-admin');loginUI('Você saiu.')};
+    document.getElementById('nvFX').onclick=close;document.getElementById('nvSairA').onclick=()=>{ss.del('fliper-admin');try{localStorage.removeItem('fliper-adm')}catch(e){}window.dispatchEvent(new CustomEvent('nuvem-admin',{detail:false}));loginUI('Você saiu.')};
     document.getElementById('nvFC').onclick=()=>{F.i.value='';F.n.value='';F.p.value='';F.a.checked=true;F.i.readOnly=false};
     const confirma=(btn,txt,fn)=>{btn.onclick=()=>{if(btn.dataset.c){fn()}else{btn.dataset.c='1';btn.classList.add('nv-warn');const o=btn.textContent;btn.textContent=txt;setTimeout(()=>{delete btn.dataset.c;btn.classList.remove('nv-warn');btn.textContent=o},3500)}}};
     const call=async(fn,args,ok)=>{try{const d=await rpc(fn,args,s.token);if(d&&d.ok===false)throw new Error(d.erro);painel(ok)}catch(e){if(/expirada/.test(e.message)){ss.del('fliper-admin');loginUI(e.message)}else document.getElementById('nvPM').textContent=e.message}};

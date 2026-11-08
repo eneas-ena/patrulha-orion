@@ -70,7 +70,7 @@ footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:
 </main>
 <div id="toast" hidden><span>Há uma versão nova.</span><button id="btnToast">Atualizar agora</button></div>
 <script>
-const VERSAO = '1.5.0';
+const VERSAO = '1.5.1';
 const $=id=>document.getElementById(id);
 const get=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 $('ver').textContent='v'+VERSAO;
@@ -85,10 +85,12 @@ let PROG=null; // progresso vindo do ranking online (quando o jogador entrou)
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function melhor(m){const loc=+get(m.key+'-patente',-1);const srv=PROG&&PROG.mesas&&PROG.mesas[m.id]?PROG.mesas[m.id].patente:-1;return Math.max(isNaN(loc)?-1:loc,srv)}
 function jogou(m){return (+get(m.key+'-recorde',0)||0)>0||!!(PROG&&PROG.mesas&&PROG.mesas[m.id])}
-function render(){const el=$('mesas');el.textContent='';let anterior=null;
+// o administrador (depois de entrar com e-mail e senha neste aparelho) vê todas as mesas liberadas
+function adm(){try{return localStorage.getItem('fliper-adm')==='1'}catch(e){return false}}
+function render(){const el=$('mesas');el.textContent='';let anterior=null;const ADM=adm();if(ADM){const n=document.createElement('p');n.className='admnote';n.style.cssText='grid-column:1/-1;margin:0;color:var(--muted);font-size:13px';n.textContent='Administrador: todas as mesas prontas estão liberadas neste aparelho.';el.appendChild(n)}
   MESAS.forEach((m,i)=>{let estado='open',falta='';
     if(!m.pronta)estado='soon';
-    else if(anterior&&!(melhor(anterior)>=anterior.abre||jogou(m)||(PROG&&(PROG.liberadas||[]).includes(m.id)))){estado='lock';falta=`Para abrir: chegue a <b>${esc(anterior.ranks[anterior.abre])}</b> na mesa ${esc(anterior.nome)}. Sua melhor patente lá: ${melhor(anterior)>=0?esc(anterior.ranks[melhor(anterior)]):'nenhuma ainda'}.`}
+    else if(anterior&&!(ADM||melhor(anterior)>=anterior.abre||jogou(m)||(PROG&&(PROG.liberadas||[]).includes(m.id)))){estado='lock';falta=`Para abrir: chegue a <b>${esc(anterior.ranks[anterior.abre])}</b> na mesa ${esc(anterior.nome)}. Sua melhor patente lá: ${melhor(anterior)>=0?esc(anterior.ranks[melhor(anterior)]):'nenhuma ainda'}.`}
     const rec=(+get(m.key+'-recorde',0)||0).toLocaleString('pt-BR');
     const tag=estado==='open'?'a':'div';const card=document.createElement(tag);card.className=`table ${m.id} ${estado}`;if(estado==='open')card.href=m.arquivo;
     card.innerHTML=`${m.img?`<img src="${m.img}" alt="Mesa ${esc(m.nome)}">`:`<div class="ph">${estado==='soon'?'Em construção':''}</div>`}
@@ -97,6 +99,7 @@ function render(){const el=$('mesas');el.textContent='';let anterior=null;
     el.appendChild(card);if(m.pronta)anterior=m})}
 render();
 window.addEventListener('nuvem-progresso',e=>{PROG=e.detail;render()});
+window.addEventListener('nuvem-admin',render);
 const SUN='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M5 19l1.4-1.4M17.6 6.4L19 5"/></svg>',MOON='<svg viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>';
 const cur=()=>{const a=document.documentElement.getAttribute('data-theme');return a||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')};
 const t0=get('orion-tema','');if(t0==='dark'||t0==='light')document.documentElement.setAttribute('data-theme',t0);
@@ -109,6 +112,6 @@ async function check(){try{const r=await fetch(location.href,{cache:'no-store'})
 check();setInterval(check,300000);
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
-<script src="nuvem.js?v=1.5.0"></script>
+<script src="nuvem.js?v=1.5.1"></script>
 </body>
 </html>
