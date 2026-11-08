@@ -192,7 +192,8 @@ button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 
 <script>
 'use strict';
-const VERSAO = '1.3.1+n1.2.0';
+const VERSAO = '1.3.1+n1.4.0';
+const DIF={vel:.9,G:1500,escudo:8,escudoTreino:15,ajuda:false,tilt:4.2}; // dificuldade da mesa
 const KEY="apoc";
 const T={
  "title": "Apocalipse",
@@ -229,8 +230,8 @@ const T={
  "lockHeld": n=>`Bola guardada no Abismo: ${n} de 3. Nova bola no lançador`
 };
 
-const VELOCIDADE = 0.9; // 1 = velocidade original; 0.9 = 10% mais lento
-const W=620,H=1040,R=11,G=1500,DT=1/480,VMAX=2600,PLY=1000,CX=286,CY=600;
+const VELOCIDADE = DIF.vel; // velocidade do jogo (1 = original) // 1 = velocidade original; 0.9 = 10% mais lento
+const W=620,H=1040,R=11,G=DIF.G,DT=1/480,VMAX=2600,PLY=1000;
 const MX=x=>572-x, $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString('pt-BR');
 const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
@@ -240,6 +241,7 @@ function rng(seed){let s=seed;return()=>(s=(s*1664525+1013904223)>>>0)/429496729
 const segs=[];
 function seg(x1,y1,x2,y2,o={}){const s={x1,y1,x2,y2,e:.42,r:3,type:'wall',active:true,...o};s.dx=x2-x1;s.dy=y2-y1;s.l2=s.dx*s.dx+s.dy*s.dy;segs.push(s);return s}
 function poly(pts,o,close){for(let i=0;i<pts.length-1;i++)seg(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],o);if(close)seg(pts.at(-1)[0],pts.at(-1)[1],pts[0][0],pts[0][1],o)}
+const CX=286,CY=600,MOON_R=60,TOPIN={x:286,y:62},RAMP_IN=[{x:475,y:378,r:26},{x:197,y:404,r:25}]; // centro da Estação, lua e entradas das rampas
 const ARC={x:310,y:310,r:290},arcPts=[];
 for(let i=0;i<=52;i++){const a=-i/52*Math.PI;arcPts.push([ARC.x+Math.cos(a)*ARC.r,ARC.y+Math.sin(a)*ARC.r])}
 poly(arcPts,{type:'outer',e:.3});
@@ -362,20 +364,29 @@ function hitBoost(v,s){if(v<70||s.on||g.tilted)return;s.on=true;add(7000);g.base
 const MBTXT=T.mbtxt;
 function lockHelp(){return g.lockLit?T.lockLit:T.locksN(g.locks)}
 function hitLetter(v,s){if(v<55||s.on||g.tilted)return;s.on=true;add(12000);g.base+=1200;sfx('target');event('letter');
-  if(letterT.every(l=>l.on)){add(150000);g.post=Math.max(g.post,g.t+12);say(T.letters,2.6);sfx('rank');count('orion');after(1.2,()=>letterT.forEach(l=>l.on=false))}}
+  if(letterT.every(l=>l.on)){if(typeof BOSS!=='undefined')BOSS.armado=true;add(150000);g.post=Math.max(g.post,g.t+12);say(T.letters,2.6);sfx('rank');count('orion');after(1.2,()=>letterT.forEach(l=>l.on=false))}}
+// Chefe da mesa (opcional): um alvo grande que só cai depois de vários golpes, com as letras completas
+function bossCol(b){const B=BOSS;if(g.t<B.down)return;const dx=b.x-B.x,dy=b.y-B.y,d2=dx*dx+dy*dy,m=R+B.r;if(d2>=m*m||d2<=0)return;
+  const d=Math.sqrt(d2),nx=dx/d,ny=dy/d;b.x=B.x+nx*m;b.y=B.y+ny*m;const vn=reflect(b,nx,ny,.45);if(vn>-90||g.tilted||g.t<B.cool)return;
+  B.cool=g.t+.35;B.f=g.t+.25;b.vx+=nx*220;b.vy+=ny*220;spark(B.x+nx*B.r,B.y+ny*B.r,P.red,12,280);
+  if(B.armado){B.hp--;add(50000);g.base+=3000;sfx('drop');shake(3,200);count('bosshit');if(B.hp<=0)bossDown();else say(T.bossHit(B.hp),1.6)}
+  else{add(5000);sfx('bump');if(g.t>B.msg){B.msg=g.t+3;say(T.bossFraco,1.8)}}}
+function bossDown(){const B=BOSS;B.armado=false;B.down=g.t+8;B.max=Math.min(B.max+1,B.maxTop);B.hp=B.max;add(500000);big(T.bossDown,3.4,'multi');shake(7,600);sfx('rank');count('boss');event('boss');
+  after(1.4,()=>letterT.forEach(l=>l.on=false));
+  if(g.state==='play'&&!g.tilted&&g.balls.length===1){g.saveUntil=g.t+12;after(.8,()=>{if(g.state==='play'){g.balls.push(topBall());sfx('eject')}})}else add(250000)}
 function holeAward(){const A=[()=>{add(100000);return'+100.000'},()=>{if(g.mult<5){g.mult++;g.dirty=true}return'Multiplicador '+g.mult+'×'},()=>{g.kick=[true,true];return'Retornos armados'},()=>{g.post=Math.max(g.post,g.t+25);return'Pino de proteção ativo'},()=>{g.turbo=g.t+20;return T.turboAward}];
   say(T.holePrefix+A[Math.floor(Math.random()*A.length)](),2.6)}
-function topBall(){return newBall(286+(Math.random()-.5)*60,62,{vx:(Math.random()-.5)*220,vy:120,nc:.6,field:true,gateClear:true})} // bolas extras entram pelo alto, entre os para-choques
+function topBall(){return newBall(TOPIN.x+(Math.random()-.5)*60,TOPIN.y,{vx:(Math.random()-.5)*220,vy:120,nc:.6,field:true,gateClear:true})} // bolas extras entram pelo alto, entre os para-choques
 function newBall(x,y,o={}){return{x,y,vx:0,vy:0,ax:x,ay:y,railId:0,cap:null,rail:null,held:false,nc:0,gateClear:false,still:0,field:false,bumpCool:0,rot:0,...o}}
 function launchHint(){return matchMedia('(hover: none)').matches?'Segure o dedo na mesa e solte para lançar':'Segure Espaço e solte para lançar'}
 function idleMsg(){if(g.state==='attract')return'Aperte Iniciar';if(g.state==='over')returnT.fim;if(g.state==='plunger'&&g.balls.some(b=>b.held))return g.skill>=0?`${launchHint()}. Precisão: força ${BANDS[g.skill].nome}, na faixa verde`:launchHint();
   const m=g.mission;if(g.capt)return `${CAPNOME}: a bola sai em ${Math.max(1,Math.ceil(g.capt.until-g.t))} s`;
   const op=[m?`${m.nome}: ${g.prog} de ${m.goal}`:'A próxima missão já vai começar'];if(g.lockLit&&g.balls.length===1)op.push(lockHelp());if(g.balls.length===1)op.push(`Multibola em ${fmt(Math.max(0,mbMarco(g.mbIdx)-g.score))} pontos`);
   return op[Math.floor(g.t/4)%op.length]}
-function spawn(){if(g.easy){g.kick=[true,true];g.post=g.t+1e9}g.skill=Math.floor(Math.random()*3);g.skillHit=false;g.balls=[newBall(576,PLY-R,{held:true})];g.state='plunger';g.pull=0;g.pulling=false;g.dirty=true;
+function spawn(){if(g.easy||DIF.ajuda){g.kick=[true,true];g.post=g.t+1e9}else{if(DIF.retorno)g.kick=[true,true];if(DIF.pino)g.post=g.t+DIF.pino}g.skill=Math.floor(Math.random()*3);g.skillHit=false;g.balls=[newBall(576,PLY-R,{held:true})];g.state='plunger';g.pull=0;g.pulling=false;g.dirty=true;
   g.msgUntil=0;}
 function newGame(){Object.assign(g,{score:0,ball:1,extra:0,rank:0,mult:1,base:0,mission:null,mi:0,loop:0,prog:0,tilted:false,nudge:0,post:0,turbo:0,kick:[false,false],easy,mbIdx:0,mbPend:[],capt:null,recStart:g.record,recSaid:false,skill:-1,skillHit:false,combo:0,comboT:-9,jp:0,jpBump:0,mb:false,wizard:0,saveUsed:false,done:0,locks:0,lockLit:false,timers:[],saveUntil:0,dirty:true,stats:{},orbit:null});
-  lanes.forEach(l=>l.on=false);laneLow.forEach(l=>l.on=false);letterT.forEach(l=>l.on=false);stars.forEach(l=>l.on=false);boostT.forEach(f=>f.on=false);fuelT.forEach(f=>f.on=false);dropT.forEach(d=>d.active=true);$('overlay').hidden=true;$('iniForm').hidden=true;spawn()}
+  lanes.forEach(l=>l.on=false);laneLow.forEach(l=>l.on=false);letterT.forEach(l=>l.on=false);stars.forEach(l=>l.on=false);if(typeof BOSS!=='undefined')Object.assign(BOSS,{hp:BOSS.max0,max:BOSS.max0,armado:false,down:0,cool:0,msg:0,f:0});boostT.forEach(f=>f.on=false);fuelT.forEach(f=>f.on=false);dropT.forEach(d=>d.active=true);$('overlay').hidden=true;$('iniForm').hidden=true;spawn()}
 function ballLost(){count('drain');
   if(g.balls.length)return;
   if(g.t<g.saveUntil&&!g.tilted){say('Escudo ativo: bola devolvida (só uma vez por bola)',2.4);voice('escudo');g.saveUntil=0;g.saveUsed=true;sfx('prog');spawn();return}
@@ -408,7 +419,7 @@ function releasePlunger(){if(!g.pulling)return;g.pulling=false;const b=g.balls.f
 function doNudge(){if(g.state!=='play'||g.tilted)return;g.nudge+=1;
   for(const b of g.balls)if(!b.held&&!b.cap&&!b.rail){b.vx+=(Math.random()<.5?-1:1)*(60+Math.random()*70);b.vy-=40+Math.random()*60}
   const t=$('tilt');t.classList.remove('shake');void t.offsetWidth;t.classList.add('shake');sfx('nudge');
-  if(g.nudge>=4.2){g.tilted=true;flips.forEach(f=>f.press=false);big('TILT! Flippers desligados',9,'tilt');sfx('tilt')}
+  if(g.nudge>=DIF.tilt){g.tilted=true;flips.forEach(f=>f.press=false);big('TILT! Flippers desligados',9,'tilt');sfx('tilt')}
   else if(g.nudge>=3)say('Cuidado: mesa balançando',1.6)}
 function flip(i,on){if(g.tilted&&on)return;if(flips[i].press===on)return;flips[i].press=on;flips[i+2].press=on;if(on&&g.state!=='attract'&&g.state!=='over')sfx('flip')}
 
@@ -438,7 +449,7 @@ function physStep(){
   for(const f of flips){const up=f.press&&!g.tilted,tar=up?f.up:FL.rest,sp=FL.w*(up?1:.72);
     if(f.a>tar+1e-6){f.w=-sp;f.a=Math.max(tar,f.a-sp*DT)}else if(f.a<tar-1e-6){f.w=sp;f.a=Math.min(tar,f.a+sp*DT)}else f.w=0}
   if(g.pulling)g.pull=Math.min(1,g.pull+DT/.9);
-  moon.a+=1.1*DT;moon.x=CX+Math.cos(moon.a)*60;moon.y=CY+Math.sin(moon.a)*60;moon.cool=Math.max(0,moon.cool-DT);
+  moon.a+=1.1*DT;moon.x=CX+Math.cos(moon.a)*MOON_R;moon.y=CY+Math.sin(moon.a)*MOON_R;moon.cool=Math.max(0,moon.cool-DT);
   for(const sp of spinners){if(sp.rate>0){sp.ang+=sp.rate*DT;sp.rate=Math.max(0,sp.rate-sp.rate*1.1*DT-1.6*DT);const h=Math.floor(sp.ang/Math.PI);if(h!==sp.half){sp.half=h;if(!g.tilted){add(500);g.base+=40;sfx('spin');event('spin')}}}}
   for(let i=g.balls.length-1;i>=0;i--){const b=g.balls[i];
     if(b.held){b.x=576;b.y=PLY-R+g.pull*46;continue}
@@ -461,12 +472,13 @@ function physStep(){
     for(const u of bumpers){const dx=b.x-u.x,dy=b.y-u.y,d2=dx*dx+dy*dy,m=R+u.r;
       if(d2<m*m&&d2>0){const d=Math.sqrt(d2),nx=dx/d,ny=dy/d;b.x=u.x+nx*m;b.y=u.y+ny*m;reflect(b,nx,ny,.5);
         if(!g.tilted){const kk=u.mini?500:640;b.vx+=nx*kk+(Math.random()-.5)*50;b.vy+=ny*kk;u.f=g.t+.12;spark(u.x+nx*u.r,u.y+ny*u.r,u.mini?P.cyan:P.amber,8,240);if(Math.hypot(b.vx,b.vy)>1500)shake(1.6,90);add((u.mini?1500:1000)*(g.t<g.turbo?2:1));g.base+=250;sfx(u.mini?'mini':'bump');event('bumper')}}}
+    if(typeof BOSS!=='undefined')bossCol(b);
     for(const q of pegs){const dx=b.x-q.x,dy=b.y-q.y,d2=dx*dx+dy*dy,m=R+q.r;if(d2<m*m&&d2>0){const d=Math.sqrt(d2),nx=dx/d,ny=dy/d;b.x=q.x+nx*m;b.y=q.y+ny*m;const vn=reflect(b,nx,ny,.7);
       if(vn<-60&&!g.tilted){b.vx+=nx*110;b.vy+=ny*110;q.f=g.t+.1;add(300);sfx('peg')}}}
     {const dx=b.x-moon.x,dy=b.y-moon.y,d2=dx*dx+dy*dy,m=R+moon.r;if(d2<m*m&&d2>0){const d=Math.sqrt(d2),nx=dx/d,ny=dy/d;b.x=moon.x+nx*m;b.y=moon.y+ny*m;reflect(b,nx,ny,.55);
       if(moon.cool===0&&!g.tilted){b.vx+=nx*280;b.vy+=ny*280;moon.cool=.35;moon.f=g.t+.15;add(12000);g.base+=800;sfx('moon');event('moon')}}}
     if(g.t<g.post){const dx=b.x-CX,dy=b.y-985,d2=dx*dx+dy*dy,m=R+8;if(d2<m*m&&d2>0){const d=Math.sqrt(d2),nx=dx/d,ny=dy/d;b.x=CX+nx*m;b.y=985+ny*m;reflect(b,nx,ny,.75);
-      if(b.vy>-500)b.vy=-500;b.vx*=1.1;sfx('sling');g.post=0;say(g.easy?'Pino salvou a bola! Volta em 6 segundos':'Pino salvou a bola!',1.8);count('postsave');if(g.easy)after(6,()=>{if(g.easy)g.post=g.t+1e9})}}
+      if(b.vy>-500)b.vy=-500;b.vx*=1.1;sfx('sling');g.post=0;say(g.easy||DIF.ajuda?'Pino salvou a bola! Volta em '+(DIF.pinoVolta||6)+' segundos':'Pino salvou a bola!',1.8);count('postsave');if(g.easy||DIF.ajuda)after(DIF.pinoVolta||6,()=>{if(g.easy||DIF.ajuda)g.post=g.t+1e9})}}
     for(const f of flips)collideFlip(b,f);
     for(let j=0;j<g.balls.length;j++){const o=g.balls[j];if(o===b||o.cap||o.rail!==null||o.held)continue;
       const dx=b.x-o.x,dy=b.y-o.y,d2=dx*dx+dy*dy,m=2*R;
@@ -504,7 +516,7 @@ function sensors(b){
       if(l.out&&!was)say('Saída: +25.000',1.2);
       if(laneLow.every(k=>k.on)){laneLow.forEach(k=>k.on=false);if(g.mult<5){g.mult++;g.dirty=true}add(50000);say('Quatro corredores! Multiplicador '+g.mult+'×',2);sfx('prog')}}}
   if(b.y>862&&b.y<900&&b.vy>0&&(b.x<62||b.x>510)){const i=b.x<CX?0:1;if(g.kick[i]&&!g.tilted){g.kick[i]=false;b.vy=-1560;b.vx=i?-190:190;add(5000);sfx('launch');say('Retorno! A bola volta à mesa',1.6);shake(3,200);spark(b.x,b.y,P.green,14,300);count('kickback')}}
-  if(!b.field&&b.x<552&&b.y<300){b.field=true;if(g.skillHit){g.skillHit=false;const v=BANDS[g.skillBand].pts*(1+g.loop);add(v);big(`Lançamento de precisão! +${fmt(v)}`,2.6,'precisao');sfx('rank');count('skill')}if(g.state==='play'&&g.balls.length===1&&!g.saveUsed)g.saveUntil=g.t+(g.easy?15:8);}
+  if(!b.field&&b.x<552&&b.y<300){b.field=true;if(g.skillHit){g.skillHit=false;const v=BANDS[g.skillBand].pts*(1+g.loop);add(v);big(`Lançamento de precisão! +${fmt(v)}`,2.6,'precisao');sfx('rank');count('skill')}if(g.state==='play'&&g.balls.length===1&&!g.saveUsed)g.saveUntil=g.t+(g.easy?DIF.escudoTreino:DIF.escudo);}
   for(const l of lanes){l.cool=Math.max(0,l.cool-DT);
     if(l.cool===0&&Math.abs(b.x-l.x)<14&&Math.abs(b.y-l.y)<12){l.cool=.8;const was=l.on;l.on=true;add(was?1000:8000);g.base+=800;sfx('roll');event('lane');
       if(lanes.every(k=>k.on)){lanes.forEach(k=>k.on=false);if(g.mult<5){g.mult++;say(`Multiplicador de bônus ${g.mult}×`,2);g.dirty=true}add(30000);sfx('prog');count('mult')}}}
@@ -516,8 +528,8 @@ function sensors(b){
         bb.cap={x:o.x,y:o.y,until:g.t+.5,done:b2=>{b2.vx=o.ex[0]*720;b2.vy=o.ex[1]*720;b2.nc=.8}}}};return}}
   {const dx=b.x-CX,dy=b.y-CY;if(!g.tilted&&g.state==='play'&&dx*dx+dy*dy<25*25&&sp<1150&&g.balls.length===1){
     b.vx=b.vy=0;count('station');if(!g.mission)acceptMission();else{add(30000);g.base+=2000;say(T.station,1.8);sfx('accept');event(g.mission.ev)}b.cap={x:CX,y:CY,until:g.t+1.1,done:bb=>{const a=-1.57+(Math.random()-.5)*1.1;bb.vx=Math.cos(a)*880;bb.vy=Math.sin(a)*880;bb.nc=1;sfx('eject')}};return}}
-  {const dx=b.x-475,dy=b.y-378;if(dx*dx+dy*dy<26*26&&b.vy<-260){b.rail=0;b.railId=0;b.vx=b.vy=0;add(30000);g.base+=5000;sfx('ramp');if(!g.lockLit&&g.balls.length===1){g.lockLit=true;say(T.ramp1Lock,2)}else say(T.ramp1,1.3);event('ramp');shot('ramp');return}}
-  {const dx=b.x-197,dy=b.y-404;if(dx*dx+dy*dy<25*25&&b.vy<-260){b.rail=0;b.railId=1;b.vx=b.vy=0;add(25000);g.base+=4000;sfx('ramp');say(T.ramp2,1.3);event('ramp2');shot('ramp2');return}}
+  {const dx=b.x-RAMP_IN[0].x,dy=b.y-RAMP_IN[0].y;if(dx*dx+dy*dy<RAMP_IN[0].r*RAMP_IN[0].r&&b.vy<-260){b.rail=0;b.railId=0;b.vx=b.vy=0;add(30000);g.base+=5000;sfx('ramp');if(!g.lockLit&&g.balls.length===1){g.lockLit=true;say(T.ramp1Lock,2)}else say(T.ramp1,1.3);event('ramp');shot('ramp');return}}
+  {const dx=b.x-RAMP_IN[1].x,dy=b.y-RAMP_IN[1].y;if(dx*dx+dy*dy<RAMP_IN[1].r*RAMP_IN[1].r&&b.vy<-260){b.rail=0;b.railId=1;b.vx=b.vy=0;add(25000);g.base+=4000;sfx('ramp');say(T.ramp2,1.3);event('ramp2');shot('ramp2');return}}
   {const dx=b.x-HOLE.x,dy=b.y-HOLE.y;if(dx*dx+dy*dy<15*15&&sp<620&&!g.tilted){b.vx=b.vy=0;sfx('worm');event('hole');shot('hole');
     if(g.lockLit&&g.balls.length===1){g.lockLit=false;g.locks++;add(50000);count('lock');
       if(g.locks<3){say(T.lockHeld(g.locks),2.8);voice('trava');shake(3,220);sfx('accept');
@@ -771,7 +783,7 @@ function draw(){
   for(let i=0;i<8;i++){const a=3.46+i/7*2.5;lamp(CX+Math.cos(a)*116,CY+Math.sin(a)*116,3.8,P.magenta,i<=g.rank&&g.state!=='attract')}
   if(!m&&blink&&g.state==='play')lamp(CX,CY,6,P.amber,true,.7);
   for(const l of lanes)lamp(l.x,l.y,6,P.cyan,l.on);
-  if(g.mb&&blink){chevron(420,520,-1.33,P.amber,true);chevron(215,515,-1.75,P.amber,true)}
+  if(g.mb&&blink){for(const c of [...(CHEV.ramp||[]),...(CHEV.ramp2||[])])chevron(c[0],c[1],c[2],P.amber,true)}
   fuelT.forEach(s=>{ctx.lineCap='round';ctx.strokeStyle=P.edge;ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(s.x1,s.y1);ctx.lineTo(s.x2,s.y2);ctx.stroke();ctx.strokeStyle=s.on?P.amber:P.cab2;ctx.lineWidth=6;ctx.stroke();lamp((s.x1+s.x2)/2+13,(s.y1+s.y2)/2-3,3.6,P.amber,s.on)});
   boostT.forEach(s=>{ctx.lineCap='round';ctx.strokeStyle=P.edge;ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(s.x1,s.y1);ctx.lineTo(s.x2,s.y2);ctx.stroke();ctx.strokeStyle=s.on?P.green:P.cab2;ctx.lineWidth=6;ctx.stroke();lamp((s.x1+s.x2)/2+15,(s.y1+s.y2)/2+4,3.6,P.green,s.on)});
   if(g.capt){const f=Math.max(0,(g.capt.until-g.t)/10);ctx.strokeStyle=P.green;ctx.lineWidth=3.5;ctx.beginPath();ctx.arc(CAP.x,CAP.y,19,-Math.PI/2,-Math.PI/2+f*6.283);ctx.stroke()}
@@ -795,6 +807,7 @@ function draw(){
   ctx.strokeStyle=P.metalLo;ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(gate.x1,gate.y1);ctx.lineTo(gate.x2,gate.y2);ctx.stroke();
   for(const b of g.balls)if(b.rail===null&&!(b.cap&&b.cap.hide)){drawTrail(b);drawBall(b)}
   bumpers.forEach(drawBumper);
+  if(typeof BOSS!=='undefined')drawBoss(BOSS);
   flips.forEach(drawFlipper);
   if(g.t<g.post){ctx.fillStyle=P.green;ctx.beginPath();ctx.arc(CX,985,8,0,7);ctx.fill();ctx.strokeStyle=P.metalHi;ctx.lineWidth=2;ctx.stroke()}
   // lançador
@@ -877,6 +890,7 @@ $('keyReset').addEventListener('click',()=>{keyCustom=null;keyWait=null;store.se
 function toggleCfg(on){cfgOpen=on;$('panel').classList.toggle('open',on);$('btnCfg').setAttribute('aria-expanded',on);$('btnCfg').setAttribute('aria-label',on?'Fechar ajustes':'Abrir ajustes');flip(0,false);flip(1,false);g.pulling=false;g.pull=0}
 $('btnCfg').addEventListener('click',()=>{toggleCfg(!cfgOpen);$('btnCfg').blur()});
 const HELP={"ver": ["'1.2.0'", "'1.3.0'"], "mesa": "Apocalipse", "estacao": "Trono", "rampD": "Cavalgada", "rampE": "Nova Jerusalém", "hole": "Abismo", "cap": "Patmos", "capSolta": "Liberto de Patmos", "letras": "V-E-R-B-O", "sinal": "Selos", "comb": "Trombetas", "reforco": "Taças", "orbita": "Muralhas", "portas": "Portas abertas no céu", "raias": "Santo, Santo, Santo", "turb": "Ventos", "bump": "Seres viventes", "final": "Rei dos reis", "bolaExtra": "Fiel e Rei"};
+const HELP_PTS=[[576,900],[CX,CY],[282,230],[475,378],[197,420],[HOLE.x,HOLE.y],[CAP.x,CAP.y],[letterT[1].cx,letterT[1].cy],[316,414],[112,545],[489,575],[40,600],[125,393],[286,95],[49,430],[43,840]];
 
 function canPause(){return g.state==='play'||g.state==='plunger'||g.state==='bonus'}
 function setPause(on){if(on&&!canPause())return;paused=on;$('pauseBox').hidden=!on||!$('help').hidden;$('btnPause').setAttribute('aria-pressed',on);$('btnPause').textContent=on?'Continuar':'Pausar';
@@ -888,17 +902,16 @@ addEventListener('blur',()=>{if(canPause()&&!paused&&!document.hasFocus())setPau
 function helpMap(){const c=document.createElement('canvas'),S=230/W;c.width=Math.round(W*S*2);c.height=Math.round(H*S*2);const x=c.getContext('2d');x.drawImage(base,0,0,c.width,c.height);x.drawImage(over,0,0,c.width,c.height);
   const k=c.width/W;x.font='600 '+Math.round(13*k*1.6)+'px "Chakra Petch",sans-serif';x.textAlign='center';x.textBaseline='middle';
   HELP_PTS.forEach(([px,py],i)=>{x.fillStyle='#ffc83d';x.strokeStyle='#160a10';x.lineWidth=3*k;x.beginPath();x.arc(px*k,py*k,12*k*1.4,0,7);x.fill();x.stroke();x.fillStyle='#160a10';x.fillText(i+1,px*k,py*k+1)});return c}
-const HELP_PTS=[[576,900],[CX,CY],[282,230],[475,378],[197,420],[HOLE.x,HOLE.y],[CAP.x,CAP.y],[letterT[1].cx,letterT[1].cy],[316,414],[112,545],[489,575],[40,600],[125,393],[286,95],[49,430],[43,840]];
 function openHelp(){if(canPause()&&!paused){setPause(true);pauseByHelp=true}const h=HELP,m=MISSIONS,fm=n=>fmt(n);
   const leg=[['Lançador','segure e solte. Se soltar com o medidor na <b>faixa verde</b>, ganha o Lançamento de precisão (até 250 mil).'],
    [h.estacao,'adianta em 1 passo a missão em andamento e vale 30 mil.'],[h.bump,'pontos a cada toque; contam para várias missões e aumentam o Jackpot.'],
    [h.rampD+' (rampa da direita)','acende a trava do '+h.hole+' e, na multibola, vale <b>Jackpot</b>.'],[h.rampE+' (rampa da esquerda)','leva a bola ao alto e, na multibola, também vale Jackpot.'],
    [h.hole,'com a trava acesa, guarda a bola. Com 3 bolas guardadas começa a <b>multibola de 3 bolas</b>. Sem a trava, dá um prêmio-surpresa.'],
    [h.cap,'buraco difícil: prende a bola por <b>10 segundos</b> e manda outra para o lançador. Depois você joga com as duas.'],
-   ['Letras '+h.letras,'passe por cima para acender. A palavra completa vale 150 mil e liga o pino de proteção.'],[h.sinal,'alvos que caem; os três derrubados armam os retornos das saídas.'],
+   ['Letras '+h.letras,h.letrasTxt||'passe por cima para acender. A palavra completa vale 150 mil e liga o pino de proteção.'],[h.sinal,'alvos que caem; os três derrubados armam os retornos das saídas.'],
    [h.comb,'três alvos na ilha da esquerda; completos ligam o pino entre os rebatedores.'],[h.reforco,'três alvos na ilha da direita; completos dobram os pontos dos '+h.bump.toLowerCase()+' por 20 s.'],
    [h.orbita,'contorne a mesa por fora, de um lado ao outro.'],[h.portas,'a bola entra numa e sai na outra.'],[h.raias,'as três acesas aumentam o multiplicador de bônus (até 5×).'],
-   [h.turb,'giram com a velocidade da bola e pontuam a cada volta.'],['Saídas e retornos','cair na saída lateral dá pontos, mas é perigoso. Com o retorno aceso (luz verde), a bola volta à mesa.']];
+   [h.turb,'giram com a velocidade da bola e pontuam a cada volta.'],[h.saidasNome||'Saídas e retornos',h.saidasTxt||'cair na saída lateral dá pontos, mas é perigoso. Com o retorno aceso (luz verde), a bola volta à mesa.'],...(h.extra||[])];
   const marcos=[0,1,2,3,4,5,6].map(i=>fm(mbMarco(i))).join(', ');
   $('helpSheet').innerHTML=`<div class="top"><h2 id="helpT">Como jogar · ${h.mesa}</h2><button id="helpX">Fechar</button></div>
   <section><h3>O objetivo</h3><p>Faça o máximo de pontos com 3 bolas. Quem entra com as iniciais e o PIN aparece no ranking online. Use os rebatedores para manter a bola em jogo e mire nos alvos para cumprir missões e ganhar multibolas.</p></section>
@@ -948,6 +961,6 @@ window.__orion={CAP,mbMarco,shot,startWizard,lanes,releasePlunger,RANK_AT,MISSIO
   g.auto=false;flips.forEach(f=>f.press=false);return{games:out,live:{score:g.score,rank:g.rank,stats:{...g.stats}}}}};
 </script>
 
-<script src="nuvem.js?v=1.2.0"></script>
+<script src="nuvem.js?v=1.4.0"></script>
 </body>
 </html>
