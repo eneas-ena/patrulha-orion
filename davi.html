@@ -192,7 +192,7 @@ button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 
 <script>
 'use strict';
-const VERSAO = '0.1.0+n1.5.1';
+const VERSAO = '0.1.1+n1.5.1';
 const DIF={vel:.82,G:1300,escudo:15,escudoTreino:20,ajuda:false,retorno:true,pino:30,tilt:5.5}; // fácil para médio: saídas abertas; em cada bola, retornos acesos e pino central nos primeiros 30 s
 const KEY="davi";
 const T={
@@ -889,9 +889,14 @@ const updFlips=()=>{const v=[...ptrs.values()];flip(0,v.includes(0));flip(1,v.in
 stage.addEventListener('pointerdown',e=>{if(e.target.closest('button,#card'))return;ensureAudio();
   if(paused){setPause(false);e.preventDefault();return}
   if(cfgOpen){toggleCfg(false);e.preventDefault();return}
-  if(g.state==='plunger'&&g.balls.length===1&&g.balls[0].held){ptrs.set(e.pointerId,'p');pressPlunger();e.preventDefault();return}
- const r=stage.getBoundingClientRect();ptrs.set(e.pointerId,e.clientX<r.left+r.width/2?0:1);updFlips();e.preventDefault()});
-for(const t of ['pointerup','pointercancel'])addEventListener(t,e=>{if(!ptrs.has(e.pointerId))return;const v=ptrs.get(e.pointerId);ptrs.delete(e.pointerId);if(v==='p')releasePlunger();else updFlips()});
+  if(g.state==='plunger'&&g.balls.length===1&&g.balls[0].held){ptrs.set(e.pointerId,'p');try{stage.setPointerCapture(e.pointerId)}catch(_){}pressPlunger();e.preventDefault();return}
+ const r=stage.getBoundingClientRect();ptrs.set(e.pointerId,e.clientX<r.left+r.width/2?0:1);try{stage.setPointerCapture(e.pointerId)}catch(_){}updFlips();e.preventDefault()});
+for(const t of ['pointerup','pointercancel','lostpointercapture'])addEventListener(t,e=>{if(!ptrs.has(e.pointerId))return;const v=ptrs.get(e.pointerId);ptrs.delete(e.pointerId);if(v==='p')releasePlunger();else updFlips()});
+// trava de segurança: o celular às vezes perde o aviso de "dedo levantado". Quando não há mais nenhum dedo
+// na tela (ou o app perde o foco), solta tudo, para nenhum rebatedor ficar preso levantado.
+function soltarTudo(){const tinha=[...ptrs.values()];ptrs.clear();if(tinha.includes('p'))releasePlunger();flip(0,false);flip(1,false)}
+for(const t of ['touchend','touchcancel'])addEventListener(t,e=>{if(e.touches.length===0&&ptrs.size)soltarTudo()},{passive:true});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)soltarTudo()});addEventListener('blur',soltarTudo);
 stage.addEventListener('contextmenu',e=>e.preventDefault());
 const hold=$('btnLaunch');hold.addEventListener('pointerdown',e=>{e.preventDefault();ensureAudio();pressPlunger()});for(const t of ['pointerup','pointercancel','pointerleave'])hold.addEventListener(t,releasePlunger);
 $('btnNudge').addEventListener('pointerdown',e=>{e.preventDefault();doNudge()});

@@ -1,6 +1,6 @@
-// Patrulha Órion — service worker (versão m1.5.1-o0.11.1+n1.5.1-a1.3.1+n1.5.1-r0.1.0+n1.5.1-d0.1.0+n1.5.1-j0.1.0+n1.5.1)
+// Patrulha Órion — service worker (versão m1.5.1-o0.11.2+n1.5.1-a1.3.2+n1.5.1-r0.1.1+n1.5.1-d0.1.1+n1.5.1-j0.1.1+n1.5.1)
 // Rede primeiro: com internet, sempre pega a versão nova; sem internet, usa a cópia guardada.
-const CACHE='orion-m1.5.1-o0.11.1+n1.5.1-a1.3.1+n1.5.1-r0.1.0+n1.5.1-d0.1.0+n1.5.1-j0.1.0+n1.5.1';
+const CACHE='orion-m1.5.1-o0.11.2+n1.5.1-a1.3.2+n1.5.1-r0.1.1+n1.5.1-d0.1.1+n1.5.1-j0.1.1+n1.5.1';
 const FILES=['./','./index.html','./orion.html','./apocalipse.html','./mesa-orion.jpg','./nuvem.js','./mesa-apocalipse.jpg','./arca.html','./mesa-arca.jpg','./davi.html','./mesa-davi.jpg','./jerico.html','./mesa-jerico.jpg','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n!==CACHE).map(n=>caches.delete(n)))).then(()=>self.clients.claim()))});
