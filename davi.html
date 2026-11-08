@@ -192,7 +192,7 @@ button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 
 <script>
 'use strict';
-const VERSAO = '0.1.0+n1.4.0';
+const VERSAO = '0.1.0+n1.5.0';
 const DIF={vel:.82,G:1300,escudo:15,escudoTreino:20,ajuda:false,retorno:true,pino:30,tilt:5.5}; // fácil para médio: saídas abertas; em cada bola, retornos acesos e pino central nos primeiros 30 s
 const KEY="davi";
 const T={
@@ -351,7 +351,7 @@ function event(name,c=1){count(name);if(name==='bumper'&&g.balls.length>1)g.jpBu
     g.dirty=true}
   else sfx('prog');
 }
-function shot(kind){if(g.tilted)return;
+function shot(kind){if(g.tilted)return;if(typeof MURO!=='undefined'&&(kind==='orbit'||kind==='ramp'||kind==='ramp2'))muroVolta();
   if(g.t-g.comboT<4)g.combo++;else g.combo=1;g.comboT=g.t;
   if(g.combo>=2){const c=g.combo,v=25000*c*c;add(v);count('combo');after(.8,()=>{say(`Combo ×${c}! +${fmt(v)}`,1.8);sfx('prog');if(c>=3)voice('combo')})}
   if(g.balls.length>1&&(kind==='ramp'||kind==='ramp2')){g.jp++;const sup=g.jp%3===0,v=(250000+g.jpBump*15000)*(sup?3:1);add(v);count(sup?'superjp':'jackpot');
@@ -375,6 +375,13 @@ function lockHelp(){return g.lockLit?T.lockLit:T.locksN(g.locks)}
 function hitLetter(v,s){if(v<55||s.on||g.tilted)return;s.on=true;add(12000);g.base+=1200;sfx('target');event('letter');
   if(letterT.every(l=>l.on)){if(typeof BOSS!=='undefined')BOSS.armado=true;add(150000);g.post=Math.max(g.post,g.t+12);say(T.letters,2.6);sfx('rank');count('orion');after(1.2,()=>letterT.forEach(l=>l.on=false))}}
 // Chefe da mesa (opcional): um alvo grande que só cai depois de vários golpes, com as letras completas
+// Muralha da mesa (opcional): anel de segmentos 'muro' que cai depois de N voltas (órbitas e rampas)
+function muroAberto(){const M=MURO;if(g.t<M.ate)return true;for(const b of g.balls){if(Math.hypot(b.x-CX,b.y-CY)<M.r+R+4){M.ate=g.t+.25;return true}}return false}
+function muroVolta(){const M=MURO;if(g.t<M.ate)return;M.v++;M.f=g.t+.6;if(M.v<M.need){say(T.volta(M.v),1.6);sfx('prog');return}
+  M.v=0;M.ate=g.t+M.dur;M.quedas++;add(400000);big(T.muroCai,3.4,'multi');shake(9,900);sfx('rank');count('muro');event('muro');
+  for(let i=0;i<14;i++){const a=i/14*6.283;spark(CX+Math.cos(a)*M.r,CY+Math.sin(a)*M.r,P.amber,10,320)}
+  if(g.state==='play'&&!g.tilted&&g.balls.length===1){g.saveUntil=g.t+12;after(.8,()=>{if(g.state==='play'){g.balls.push(topBall());sfx('eject')}})}
+  after(M.dur-3,()=>{if(g.state==='play')say(T.muroVolta,2)})}
 function bossCol(b){const B=BOSS;if(g.t<B.down)return;const dx=b.x-B.x,dy=b.y-B.y,d2=dx*dx+dy*dy,m=R+B.r;if(d2>=m*m||d2<=0)return;
   const d=Math.sqrt(d2),nx=dx/d,ny=dy/d;b.x=B.x+nx*m;b.y=B.y+ny*m;const vn=reflect(b,nx,ny,.45);if(vn>-90||g.tilted||g.t<B.cool)return;
   B.cool=g.t+.35;B.f=g.t+.25;b.vx+=nx*220;b.vy+=ny*220;spark(B.x+nx*B.r,B.y+ny*B.r,P.red,12,280);
@@ -395,7 +402,7 @@ function idleMsg(){if(g.state==='attract')return'Aperte Iniciar';if(g.state==='o
 function spawn(){if(g.easy||DIF.ajuda){g.kick=[true,true];g.post=g.t+1e9}else{if(DIF.retorno)g.kick=[true,true];if(DIF.pino)g.post=g.t+DIF.pino}g.skill=Math.floor(Math.random()*3);g.skillHit=false;g.balls=[newBall(576,PLY-R,{held:true})];g.state='plunger';g.pull=0;g.pulling=false;g.dirty=true;
   g.msgUntil=0;}
 function newGame(){Object.assign(g,{score:0,ball:1,extra:0,rank:0,mult:1,base:0,mission:null,mi:0,loop:0,prog:0,tilted:false,nudge:0,post:0,turbo:0,kick:[false,false],easy,mbIdx:0,mbPend:[],capt:null,recStart:g.record,recSaid:false,skill:-1,skillHit:false,combo:0,comboT:-9,jp:0,jpBump:0,mb:false,wizard:0,saveUsed:false,done:0,locks:0,lockLit:false,timers:[],saveUntil:0,dirty:true,stats:{},orbit:null});
-  lanes.forEach(l=>l.on=false);laneLow.forEach(l=>l.on=false);letterT.forEach(l=>l.on=false);stars.forEach(l=>l.on=false);if(typeof BOSS!=='undefined')Object.assign(BOSS,{hp:BOSS.max0,max:BOSS.max0,armado:false,down:0,cool:0,msg:0,f:0});boostT.forEach(f=>f.on=false);fuelT.forEach(f=>f.on=false);dropT.forEach(d=>d.active=true);$('overlay').hidden=true;$('iniForm').hidden=true;spawn()}
+  lanes.forEach(l=>l.on=false);laneLow.forEach(l=>l.on=false);letterT.forEach(l=>l.on=false);stars.forEach(l=>l.on=false);if(typeof MURO!=='undefined')Object.assign(MURO,{v:0,ate:0,f:0,quedas:0});if(typeof BOSS!=='undefined')Object.assign(BOSS,{hp:BOSS.max0,max:BOSS.max0,armado:false,down:0,cool:0,msg:0,f:0});boostT.forEach(f=>f.on=false);fuelT.forEach(f=>f.on=false);dropT.forEach(d=>d.active=true);$('overlay').hidden=true;$('iniForm').hidden=true;spawn()}
 function ballLost(){count('drain');
   if(g.balls.length)return;
   if(g.t<g.saveUntil&&!g.tilted){say('Escudo ativo: bola devolvida (só uma vez por bola)',2.4);voice('escudo');g.saveUntil=0;g.saveUsed=true;sfx('prog');spawn();return}
@@ -468,12 +475,12 @@ function physStep(){
       let k=1;while(rl.len[k]<b.rail)k++;const u=(b.rail-rl.len[k-1])/(rl.len[k]-rl.len[k-1]);
       b.x=rl.pts[k-1][0]+u*(rl.pts[k][0]-rl.pts[k-1][0]);b.y=rl.pts[k-1][1]+u*(rl.pts[k][1]-rl.pts[k-1][1]);continue}
     b.vy+=G*DT;
-    if(g.state==='play'&&g.balls.length===1){const dx=CX-b.x,dy=CY-b.y,d=Math.hypot(dx,dy);if(d<130&&d>1){const a=(g.mission?520:880)*(1-d/130);b.vx+=dx/d*a*DT;b.vy+=dy/d*a*DT}}
+    if(g.state==='play'&&g.balls.length===1){const dx=CX-b.x,dy=CY-b.y,d=Math.hypot(dx,dy);if(typeof MURO==='undefined'||g.t<MURO.ate||d<MURO.r)if(d<130&&d>1){const a=(g.mission?520:880)*(1-d/130);b.vx+=dx/d*a*DT;b.vy+=dy/d*a*DT}}
     b.vx*=.99985;b.vy*=.99985;
     const sp=Math.hypot(b.vx,b.vy);if(sp>VMAX){b.vx*=VMAX/sp;b.vy*=VMAX/sp}
     const py0=b.y;b.x+=b.vx*DT;b.y+=b.vy*DT;b.rot+=b.vx*DT*.05;
     for(const sp of spinners)if(Math.abs(b.x-sp.x)<sp.w&&(py0-sp.y)*(b.y-sp.y)<=0){sp.rate=Math.min(70,sp.rate+Math.abs(b.vy)/26);}
-    for(const s of segs)if(s.active)collideSeg(b,s);
+    for(const s of segs)if(s.active&&!(s.type==='muro'&&muroAberto()))collideSeg(b,s);
     // Comporta de mão única
     const gd=(b.x-gate.x1)*gate.nx+(b.y-gate.y1)*gate.ny;
     if(gd>R+gate.r)b.gateClear=true;else if(gd<0)b.gateClear=false;
@@ -536,7 +543,7 @@ function sensors(b){
       b.cap={x:w.x,y:w.y,until:g.t+.55,hide:true,done:bb=>{const o=worms[w.to];bb.x=o.x;bb.y=o.y;sfx('eject');event('worm');shot('worm');
         bb.cap={x:o.x,y:o.y,until:g.t+.5,done:b2=>{b2.vx=o.ex[0]*720;b2.vy=o.ex[1]*720;b2.nc=.8}}}};return}}
   {const dx=b.x-CX,dy=b.y-CY;if(!g.tilted&&g.state==='play'&&dx*dx+dy*dy<25*25&&sp<1150&&g.balls.length===1){
-    b.vx=b.vy=0;count('station');if(!g.mission)acceptMission();else{add(30000);g.base+=2000;say(T.station,1.8);sfx('accept');event(g.mission.ev)}b.cap={x:CX,y:CY,until:g.t+1.1,done:bb=>{const a=-1.57+(Math.random()-.5)*1.1;bb.vx=Math.cos(a)*880;bb.vy=Math.sin(a)*880;bb.nc=1;sfx('eject')}};return}}
+    b.vx=b.vy=0;count('station');if(typeof MURO!=='undefined'&&g.t<MURO.ate){add(250000);count('muroJack');big(T.muroJack,2.4,'multi')}if(!g.mission)acceptMission();else{add(30000);g.base+=2000;say(T.station,1.8);sfx('accept');event(g.mission.ev)}b.cap={x:CX,y:CY,until:g.t+1.1,done:bb=>{const a=-1.57+(Math.random()-.5)*1.1;bb.vx=Math.cos(a)*880;bb.vy=Math.sin(a)*880;bb.nc=1;sfx('eject')}};return}}
   {const dx=b.x-RAMP_IN[0].x,dy=b.y-RAMP_IN[0].y;if(dx*dx+dy*dy<RAMP_IN[0].r*RAMP_IN[0].r&&b.vy<-260){b.rail=0;b.railId=0;b.vx=b.vy=0;add(30000);g.base+=5000;sfx('ramp');if(!g.lockLit&&g.balls.length===1){g.lockLit=true;say(T.ramp1Lock,2)}else say(T.ramp1,1.3);event('ramp');shot('ramp');return}}
   {const dx=b.x-RAMP_IN[1].x,dy=b.y-RAMP_IN[1].y;if(dx*dx+dy*dy<RAMP_IN[1].r*RAMP_IN[1].r&&b.vy<-260){b.rail=0;b.railId=1;b.vx=b.vy=0;add(25000);g.base+=4000;sfx('ramp');say(T.ramp2,1.3);event('ramp2');shot('ramp2');return}}
   {const dx=b.x-HOLE.x,dy=b.y-HOLE.y;if(dx*dx+dy*dy<15*15&&sp<620&&!g.tilted){b.vx=b.vy=0;sfx('worm');event('hole');shot('hole');
@@ -814,6 +821,7 @@ function draw(){
   // comporta
   ctx.strokeStyle=P.metalLo;ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(gate.x1,gate.y1);ctx.lineTo(gate.x2,gate.y2);ctx.stroke();
   for(const b of g.balls)if(b.rail===null&&!(b.cap&&b.cap.hide)){drawTrail(b);drawBall(b)}
+  if(typeof MURO!=='undefined')drawMuro(MURO);
   bumpers.forEach(drawBumper);
   if(typeof BOSS!=='undefined')drawBoss(BOSS);
   flips.forEach(drawFlipper);
@@ -969,6 +977,6 @@ window.__orion={CAP,mbMarco,shot,startWizard,lanes,releasePlunger,RANK_AT,MISSIO
   g.auto=false;flips.forEach(f=>f.press=false);return{games:out,live:{score:g.score,rank:g.rank,stats:{...g.stats}}}}};
 </script>
 
-<script src="nuvem.js?v=1.4.0"></script>
+<script src="nuvem.js?v=1.5.0"></script>
 </body>
 </html>

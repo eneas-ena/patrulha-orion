@@ -70,7 +70,7 @@ footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:
 </main>
 <div id="toast" hidden><span>Há uma versão nova.</span><button id="btnToast">Atualizar agora</button></div>
 <script>
-const VERSAO = '1.4.0';
+const VERSAO = '1.5.0';
 const $=id=>document.getElementById(id);
 const get=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 $('ver').textContent='v'+VERSAO;
@@ -78,7 +78,7 @@ $('ver').textContent='v'+VERSAO;
 const MESAS=[
  {id:'arca',key:'arca',nome:'A Arca de Noé',nivel:'Nível 1 · Bem fácil',desc:'Para as crianças: bola lenta, saídas fechadas e muitos animais para levar à Arca.',pronta:true,abre:2,img:'mesa-arca.jpg',arquivo:'arca.html',ranks:['Grumete','Ajudante','Tratador','Carpinteiro','Marinheiro','Timoneiro','Capitão','Amigo de Noé']},
  {id:'davi',key:'davi',nome:'Davi e Golias',nivel:'Nível 2 · Fácil para médio',desc:'Recolha as cinco pedras lisas e derrube o gigante.',pronta:true,abre:3,img:'mesa-davi.jpg',arquivo:'davi.html',ranks:['Pastor de ovelhas','Harpista','Escudeiro','Soldado','Capitão de mil','Valente','Ungido','Rei de Israel']},
- {id:'jerico',key:'jerico',nome:'Muralhas de Jericó',nivel:'Nível 3 · Médio',desc:'Rodeie a cidade sete vezes e veja as muralhas caírem.',pronta:false,abre:3,ranks:[]},
+ {id:'jerico',key:'jerico',nome:'Muralhas de Jericó',nivel:'Nível 3 · Médio',desc:'Rodeie a cidade sete vezes e veja as muralhas caírem.',pronta:true,abre:3,img:'mesa-jerico.jpg',arquivo:'jerico.html',ranks:['Recruta','Espia','Levita','Trombeteiro','Sacerdote','Capitão','Comandante','Herói de Josué']},
  {id:'apocalipse',key:'apoc',nome:'Apocalipse',nivel:'Nível 4 · Médio para difícil',desc:'“Vi o céu aberto, e eis um cavalo branco.” De Peregrino a Cavaleiro Branco.',pronta:true,abre:4,img:'mesa-apocalipse.jpg',arquivo:'apocalipse.html',ranks:['Peregrino','Servo','Testemunha','Fiel','Vencedor','Sacerdote','Rei','Cavaleiro Branco']},
  {id:'orion',key:'orion',nome:'Patrulha Órion',nivel:'Nível 5 · Difícil · a meta',desc:'Missões no espaço, de Cadete a Almirante de Frota. “Aquele que fez o Sete-estrelo e o Órion” (Am 5.8).',pronta:true,abre:null,img:'mesa-orion.jpg',arquivo:'orion.html',ranks:['Cadete','Alferes','Tenente','Capitão','Comandante','Comodoro','Almirante','Almirante de Frota']}];
 let PROG=null; // progresso vindo do ranking online (quando o jogador entrou)
@@ -109,6 +109,6 @@ async function check(){try{const r=await fetch(location.href,{cache:'no-store'})
 check();setInterval(check,300000);
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
-<script src="nuvem.js?v=1.4.0"></script>
+<script src="nuvem.js?v=1.5.0"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // Fliperama Vidas — ligação com o Supabase (ranking online, jogadores e administrador)
 (function(){
 'use strict';
-const NUVEM_VERSAO='1.4.0';
+const NUVEM_VERSAO='1.5.0';
 // ---- Projeto principal do Supabase (já preenchido) ----
 const SUPABASE_URL='https://ghjbljypxksubmcsvaig.supabase.co';
 const SUPABASE_KEY='sb_publishable_qXCYqg1WdmelY9D1mptZXg_U8NdoKby';
@@ -107,7 +107,7 @@ function initMenu(){
   const root=document.getElementById('nuvem');if(!root)return;
   root.innerHTML=`<section class="nv-panel" aria-labelledby="nvJogT"><h2 id="nvJogT" class="nv-title">Jogador</h2><div id="nvJog"></div></section>
   <section class="nv-panel" aria-labelledby="nvRankT"><h2 id="nvRankT" class="nv-title">Ranking online</h2>
-   <div class="nv-row"><button class="nv-tab" data-mesa="arca" aria-pressed="false">Arca</button><button class="nv-tab" data-mesa="davi" aria-pressed="false">Davi</button><button class="nv-tab" data-mesa="apocalipse" aria-pressed="false">Apocalipse</button><button class="nv-tab" data-mesa="orion" aria-pressed="true">Patrulha Órion</button>
+   <div class="nv-row"><button class="nv-tab" data-mesa="arca" aria-pressed="false">Arca</button><button class="nv-tab" data-mesa="davi" aria-pressed="false">Davi</button><button class="nv-tab" data-mesa="jerico" aria-pressed="false">Jericó</button><button class="nv-tab" data-mesa="apocalipse" aria-pressed="false">Apocalipse</button><button class="nv-tab" data-mesa="orion" aria-pressed="true">Patrulha Órion</button>
    <button class="nv-tab" data-modo="classico" aria-pressed="true">Clássico</button><button class="nv-tab" data-modo="treino" aria-pressed="false">Treino</button></div>
    <ol class="nv-list" id="nvMList"></ol><p class="nv-msg" id="nvMMsg"></p></section>
   <p class="nv-row"><button id="nvAdmBtn">Área do administrador</button><span class="nv-msg" id="nvFila"></span></p>`;
